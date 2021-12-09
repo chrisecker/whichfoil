@@ -56,13 +56,15 @@ class Canvas(wx.Window):
         p1 = self._p1
         p2 = self._p2
         alpha = math.atan2((p1[1]-p2[1]), p2[0]-p1[0])
-        print "paint alpha=", alpha
+        # Alpha >0 bedeutet eine Drehung des Bildes im Uhrzeigersinn
         gc.Rotate(alpha)
         
         zoom = self._zoom
         gc.Scale(zoom, zoom)
         
         self._trafo =  gc.GetTransform()
+        #print self._trafo.Get()
+        #print self.get_trafo()
         gc.SetPen(wx.RED_PEN)
         #gc.SetBrush(wx.YELLOW_BRUSH)
 
@@ -120,9 +122,14 @@ class Canvas(wx.Window):
         alpha = math.atan2((p1[1]-p2[1]), p2[0]-p1[0])
         from geometry import Translation, Rotation, Stretch
         trafo = Translation(-wx.Point(*self._shift))
-        trafo = Rotation(-alpha)(trafo)
-        trafo = Stretch(self._zoom)(trafo)
-        print "alpha=", alpha
+        trafo = trafo(Rotation(-alpha))
+        # Achtung: der Ursprung des Koordinatensystems von wx liegt in
+        # der linken oberen Ecke, y wächst nach unten. Dies entspricht
+        # einem linkhändigen KS. Geometry geht dagegen von einem
+        # rechtshändigen KS aus. Wir müssen daher alle Drehwinkel mit
+        # -1 multiplizieren. 
+        trafo = trafo(Stretch(self._zoom))
+        #print "alpha=", alpha
         return trafo
             
     _dragstart = None # in screen coordinates
@@ -134,12 +141,12 @@ class Canvas(wx.Window):
         p2_ = trafo(p2)
         
         inv = trafo.Inverse()
-        print "trafo=", trafo
-        print "inv=", inv
+        #print "trafo=", trafo
+        #print "inv=", inv
 
-        print "p screen=", event.Position
-        print "p bitmap=", trafo(event.Position)
-        print "p test=", inv(event.Position)
+        #print "p screen=", event.Position
+        #print "p bitmap=", trafo(event.Position)
+        #print "p test=", inv(event.Position)
 
         if event.Moving():
             p = event.Position
@@ -164,7 +171,7 @@ class Canvas(wx.Window):
             self._transient = inv(points[self._current]+event.Position-self._dragstart)
             self.Refresh()
         elif event.ButtonUp():        
-            print "release"
+            #print "release"
             
             if self._transient is not None:
                 if self._current == 1:
@@ -188,6 +195,10 @@ if __name__ == '__main__':
     canvas.transient = (50, 50)
     #canvas.zoom = 2
     canvas.p1 = 30, 40
+    #canvas.shift = 100, 0
+    
+    import testing
+    testing.pyshell(locals())
     app.MainLoop()
 
 
