@@ -1,4 +1,4 @@
-
+# -*- coding: latin-1 -*-
 
 import sys
 import wx
@@ -30,6 +30,7 @@ class Canvas(wx.Window):
     _p2 = (100, 50)
     _transient = None
     bmp = None
+    airfoil = None
     def __init__(self, *args, **kwds):
         wx.Window.__init__(self, *args, **kwds)
         
@@ -46,8 +47,9 @@ class Canvas(wx.Window):
         buffer = wx.EmptyBitmap(*self.Size)
         dc = wx.BufferedPaintDC(self, buffer)
         gc = wx.GraphicsContext.Create(dc)
+        gc.PushState()
+
         #gc.SetPen(wx.WHITE_PEN)
-        #gc.PushState()
         w, h = self.Size
         
         shift = self._shift
@@ -62,7 +64,7 @@ class Canvas(wx.Window):
         zoom = self._zoom
         gc.Scale(zoom, zoom)
         
-        self._trafo =  gc.GetTransform()
+        trafo =  gc.GetTransform()
         #print self._trafo.Get()
         #print self.get_trafo()
         gc.SetPen(wx.RED_PEN)
@@ -84,7 +86,20 @@ class Canvas(wx.Window):
             gc.SetPen(pen)
             gc.DrawEllipse(p[0], p[1], s, s)
             
-        #gc.PopState()
+        gc.PopState()
+        airfoil = self.airfoil
+        if airfoil is not None:
+            p1_ = trafo.TransformPoint(*p1)
+            gc.Translate(p1_[0], p1_[1])
+
+            d = p1[0]-p2[0], p1[1]-p2[1]            
+            f = sqrt(d[0]*d[0]+d[1]*d[1])
+            xv, yv = airfoil
+            path = gc.CreatePath()
+            path.MoveToPoint((0, 0))
+            for x, y in zip(xv, yv):
+                path.AddLineToPoint(x*f, -y*f)
+            gc.StrokePath(path)
         
     def load_image(self, imagefile):
         bmp = wx.EmptyBitmap(1, 1)
@@ -124,9 +139,9 @@ class Canvas(wx.Window):
         trafo = Translation(-wx.Point(*self._shift))
         trafo = trafo(Rotation(-alpha))
         # Achtung: der Ursprung des Koordinatensystems von wx liegt in
-        # der linken oberen Ecke, y w√§chst nach unten. Dies entspricht
-        # einem linkh√§ndigen KS. Geometry geht dagegen von einem
-        # rechtsh√§ndigen KS aus. Wir m√ºssen daher alle Drehwinkel mit
+        # der linken oberen Ecke, y w‰chst nach unten. Dies entspricht
+        # einem linkh‰ndigen KS. Geometry geht dagegen von einem
+        # rechtsh‰ndigen KS aus. Wir m¸ssen daher alle Drehwinkel mit
         # -1 multiplizieren. 
         trafo = trafo(Stretch(self._zoom))
         #print "alpha=", alpha
@@ -184,6 +199,25 @@ class Canvas(wx.Window):
             self._current = None
             
 
+def load_airfoil(p):
+    #import numpy
+    #fn = "NHX021E DAT/NHX021E - 001.dat"
+    xl = []
+    yl = []
+    name = None
+    for l in open(p):
+        s = l.strip()
+        if not s: 
+            continue
+        if name is None:
+            name = s
+            continue
+        #print l
+        xs, ys = l.split()
+        xl.append(float(xs))
+        yl.append(float(ys))
+    return xl, yl
+
 if __name__ == '__main__':
     app = wx.App()
     f = wx.Frame(None)
@@ -192,10 +226,14 @@ if __name__ == '__main__':
     f.Show()
 
 
-    canvas.transient = (50, 50)
+    #canvas.transient = (50, 50)
     #canvas.zoom = 2
-    canvas.p1 = 30, 40
+    canvas.p1 = 10, 100
+    canvas.p2 = 500, 100
+    canvas.airfoil = load_airfoil("ag03.dat")
     #canvas.shift = 100, 0
+
+    
     
     import testing
     testing.pyshell(locals())
