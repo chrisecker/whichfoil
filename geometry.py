@@ -334,7 +334,7 @@ class Trafo(object):
         
     def __repr__(self):
         return "Trafo(%.10g, %.10g, %.10g, %.10g, %.10g, %.10g)" % \
-               (self.m11, self.m21, self.m12, self.m22, self.v1, self.v2)
+               (self.m11, self.m12, self.m21, self.m22, self.v1, self.v2)
 
     def __cmp__(self, t):
         if self.m11 == t.m11 and self.m12 == t.m12 and \
@@ -375,20 +375,26 @@ class Trafo(object):
         return trafo.TransformTrafo(self)     
                      
     def Inverse(self):
-        det = self.m11 * self.m22 - self.m12 * self.m21
+        det = float(self.m11 * self.m22 - self.m12 * self.m21)
+        #print "det=", det
 
-        if det == 0:
+        if det == 0.0:
             raise SingularMatrix("inverting singular matrix")
         
-        m11 = self.m22 / det;
-        m12 = -self.m12 / det;
-        m21 = -self.m21 / det;
-        m22 = self.m11 / det;
+        m11 = self.m22 / det
+        m12 = -self.m12 / det
+        m21 = -self.m21 / det
+        m22 = self.m11 / det
 
-        return Trafo(m11, m21, m12, m22,
-                     -m11 * self.v1 - m12 * self.v2,
-                     -m21 * self.v1 - m22 * self.v2);
-                     
+        #print "m11=", m11
+        #print "m12=", m12
+        #print "m21=", m21
+
+        r = Trafo(m11, m12, m21, m22,
+                  -m11 * self.v1 - m12 * self.v2,
+                  -m21 * self.v1 - m22 * self.v2);
+        #print r
+        return r
           
 class Identity(Trafo):
     def __init__(self):
