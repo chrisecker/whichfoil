@@ -5,6 +5,10 @@ import wx
 import math
 from math import sin, cos, pi, sqrt
 
+import geometry
+from geometry import Translation, Rotation, Stretch
+        
+
 def overridable_property(name, doc = None):
     setter_name = intern('set_' + name)
     return property(
@@ -65,8 +69,12 @@ class Canvas(wx.Window):
         gc.Scale(zoom, zoom)
         
         trafo =  gc.GetTransform()
-        #print self._trafo.Get()
-        #print self.get_trafo()
+        if 0:
+            print trafo.Get()
+
+            t2 = geometry.IDENTITY.Translate((-shift[0], -shift[1])).Rotate(alpha).Stretch(zoom, zoom)
+            print t2.Get()
+            
         gc.SetPen(wx.RED_PEN)
         #gc.SetBrush(wx.YELLOW_BRUSH)
 
@@ -96,9 +104,13 @@ class Canvas(wx.Window):
             f = sqrt(d[0]*d[0]+d[1]*d[1])
             xv, yv = airfoil
             path = gc.CreatePath()
-            path.MoveToPoint((0, 0))
+            first = True
             for x, y in zip(xv, yv):
-                path.AddLineToPoint(x*f, -y*f)
+                if first:
+                    first = False
+                    path.MoveToPoint(x*f, -y*f)
+                else:
+                    path.AddLineToPoint(x*f, -y*f)
             gc.StrokePath(path)
         
     def load_image(self, imagefile):
@@ -135,7 +147,6 @@ class Canvas(wx.Window):
         p1 = self._p1
         p2 = self._p2
         alpha = math.atan2((p1[1]-p2[1]), p2[0]-p1[0])
-        from geometry import Translation, Rotation, Stretch
         trafo = Translation(-wx.Point(*self._shift))
         trafo = trafo(Rotation(-alpha))
         # Achtung: der Ursprung des Koordinatensystems von wx liegt in
