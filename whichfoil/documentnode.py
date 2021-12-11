@@ -76,7 +76,6 @@ class DocumentNode(Model):
         return getattr(self, '_'+name, None)
 
     def set_attribute(self, name, value):
-        print "set attribute", name, value
         old = getattr(self, '_'+name, None)
         if old == value:
             return
@@ -91,8 +90,7 @@ class DocumentNode(Model):
         # notify views that attribute changed
         self.notify_views(name+'_changed', old)
         self.notify_owners()
-        print "ok"
-
+        
             
 
 def test_00():

@@ -56,7 +56,6 @@ class TestView(ViewBase):
         ViewBase.__init__(self)
 
     def zoom_changed(self, obj, old):
-        #print "zoom changed", obj, old
         self.messages.append([obj, old]) 
 
         
@@ -71,17 +70,11 @@ def test_00():
 
 def test_01():
     "pickle / unpickle"
-    m1 = AnalysisModel(igc_filename='../test/aussenlandung_twin.igc')
+    m1 = AnalysisModel()
     import cPickle
     s = cPickle.dumps(m1)
     m2 = cPickle.loads(s)
 
-def test_02():
-    "sabe / load"
-    m1 = AnalysisModel(igc_filename='../test/aussenlandung_twin.igc')
-    m1.save_as("tmp.iga")
-
-    m2 = load_model("tmp.iga")
     
 if __name__ == '__main__':
     test_00()
