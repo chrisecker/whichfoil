@@ -367,6 +367,9 @@ Code is based on Sketch 0.6.17
             p = args[0]
             return p.Transformed(self)
 
+    def Get(self):
+        return self.m11, self.m12, self.m21, self.m22, self.v1, self.v2
+
     def TransformPoint(self, p):
         # Note that wx points are based on integers. If you do not
         # want that, use TransformPointFloat. ... I know!
@@ -401,8 +404,8 @@ Code is based on Sketch 0.6.17
     def Translate(self, p):
         return Translation(p).TransformTrafo(self)
 
-    def Stretch(self, f1, f2=None):
-        return Stretch(f1, f2).TransformTrafo(self)
+    def Scale(self, f1, f2=None):
+        return Scale(f1, f2).TransformTrafo(self)
                      
     def Inverse(self):
         det = float(self.m11 * self.m22 - self.m12 * self.m21)
@@ -416,21 +419,16 @@ Code is based on Sketch 0.6.17
         m21 = -self.m21 / det
         m22 = self.m11 / det
 
-        #print "m11=", m11
-        #print "m12=", m12
-        #print "m21=", m21
-
         r = Trafo(m11, m12, m21, m22,
                   -m11 * self.v1 - m12 * self.v2,
                   -m21 * self.v1 - m22 * self.v2);
-        #print r
         return r
           
 
 IDENTITY = Trafo(1.0, 0, 0, 1.0, 0, 0)
 
 
-class Stretch(Trafo):
+class Scale(Trafo):
     def __init__(self, f1, f2=None):
         if f2 is None:
             f2 = f1
@@ -456,7 +454,7 @@ class Rotation(Trafo):
         offx = cx - c * cx + s * cy
         offy = cy - s * cx - c * cy
 
-        Trafo.__init__(self, c, s, -s, c, offx, offy);
+        Trafo.__init__(self, c, s, -s, c, offx, offy)
 
         
 def test_00():
