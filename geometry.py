@@ -3,7 +3,7 @@
 """
 Variante der affinen Geometry, die sich in wx integriert. Es werden 
 Point, Rect und Size von wx verwendet. Es ist zu beachten, dass
-Koordinaten immer aus ganzen Zahlen bestehen.
+Koordinaten in Wx immer aus ganzen Zahlen bestehen.
 
 Der Trafo kann auch mit Float-Koordinaten umgehehn, wenn sie als Tupel
 übegeben werden: trafo.TransformPoint((1.3, 2.1))
@@ -324,6 +324,25 @@ class SingularMatrix(Exception):
     pass
 
 class Trafo(object):
+    """
+Trafo implements a 2D affine transformation T:
+ 
+           / x \   / m11 m12 \ / x \   / v1 \
+       T * |   | = |         | |   | + |    |
+           \ y /   \ m21 m22 / \ y /   \ v2 /
+ 
+ 
+or, in homogeneous coordinates:
+ 
+                    / m11 m12 v1 \ / x \
+                    |            | |   |
+                 ^= | m21 m22 v2 | | y |
+                    |            | |   |
+                    \ 0   0   1  / \ 1 /
+
+Code is based on Sketch 0.6.17
+"""
+
     def __init__(self, m11, m12, m21, m22, v1, v2):
         self.m11 = float(m11)
         self.m12 = float(m12)
@@ -349,13 +368,15 @@ class Trafo(object):
             return p.Transformed(self)
 
     def TransformPoint(self, p):
+        # Note that wx points are based on integers. If you do not
+        # want that, use TransformPointFloat. ... I know!
         x, y = p
-        return wx.Point(self.m11 * x + self.m12 * y + self.v1, \
+        return wx.Point(self.m11 * x + self.m12 * y + self.v1,
                         self.m21 * x + self.m22 * y + self.v2)
                      
     def TransformPointFloat(self, p):
         x, y = p
-        return (self.m11 * x + self.m12 * y + self.v1, \
+        return (self.m11 * x + self.m12 * y + self.v1,
                 self.m21 * x + self.m22 * y + self.v2)
                      
     def TransformRect(self, r):
@@ -372,7 +393,16 @@ class Trafo(object):
                      self.m21*t.v1 + self.m22*t.v2 +self.v2)
 
     def Transformed(self, trafo):
-        return trafo.TransformTrafo(self)     
+        return trafo.TransformTrafo(self)
+
+    def Rotate(self, angle, center=(0, 0)):
+        return Rotation(angle, center).TransformTrafo(self)
+
+    def Translate(self, p):
+        return Translation(p).TransformTrafo(self)
+
+    def Stretch(self, f1, f2=None):
+        return Stretch(f1, f2).TransformTrafo(self)
                      
     def Inverse(self):
         det = float(self.m11 * self.m22 - self.m12 * self.m21)
@@ -396,11 +426,8 @@ class Trafo(object):
         #print r
         return r
           
-class Identity(Trafo):
-    def __init__(self):
-        Trafo.__init__(self, 1.0, 0, 0, 1.0, 0, 0)
 
-IDENTITY = Identity()
+IDENTITY = Trafo(1.0, 0, 0, 1.0, 0, 0)
 
 
 class Stretch(Trafo):
@@ -414,6 +441,7 @@ class Translation(Trafo):
     def __init__(self, p):
         Trafo.__init__(self, 1., 0,0,1., p[0], p[1])
 
+        
 class Rotation(Trafo):
     def __init__(self, angle, center = (0,0)):
         s = math.sin(angle)
@@ -429,14 +457,14 @@ class Rotation(Trafo):
         offy = cy - s * cx - c * cy
 
         Trafo.__init__(self, c, s, -s, c, offx, offy);
-    
-if __name__ == '__main__':
+
+        
+def test_00():
     p = wx.Point(1, 2)
     print 2*p
     print p*2
     print p/2
     print p/2.0
-    
     
     trafo = Translation((2, 5))
     print trafo(p)
@@ -447,6 +475,16 @@ if __name__ == '__main__':
     size = wx.Size(10, 10)
     size2 = size.Grown(3, 4)
     w, h = size2
-    print w, h
-    
+    print w, h    
     print wx.Rect(10, 10, 40, 30).Center()
+
+
+def test_01():
+    t = IDENTITY.Translate((100, 0)).Rotate(0.25*3.141592)    
+    p = wx.Point(0.0, 0.0)
+    x, y =  t.TransformPointFloat((0.0, 0.0))
+    assert x>70
+    assert y<-70
+    
+if __name__ == '__main__':
+    test_01()
