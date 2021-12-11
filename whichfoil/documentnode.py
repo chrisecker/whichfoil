@@ -1,5 +1,5 @@
-from model import Model, overridable_property
 from weakref import WeakKeyDictionary
+from .model import Model, overridable_property
 
 
 class Owners:
@@ -25,7 +25,7 @@ class Owners:
 
     def get_owners(self, obj):
         try:
-            return self._data[obj].keys()
+            return list(self._data[obj].keys())
         except KeyError:
             return ()
 
@@ -122,6 +122,7 @@ def test_00():
     assert view.msg == ('modified', (doc, ))
 
     doc.child = None
+    print (list(child.owners))
     assert child.owners == []
     assert child.owner_attributes == []
     assert view.msg == ('changed', (doc, child))

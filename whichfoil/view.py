@@ -1,16 +1,22 @@
 # -*- coding: latin-1 -*-
 
+from __future__ import absolute_import
 import sys
 import wx
 import math
 from math import sin, cos, pi, sqrt
+try:
+    from StringIO import StringIO ## for Python 2
+except ImportError:
+    from io import BytesIO as StringIO ## for Python 3
 
-import geometry
-from geometry import Translation, Rotation, Stretch
+
+from . import geometry
+from .viewbase import ViewBase
 
 
 def overridable_property(name, doc = None):
-    setter_name = intern('set_' + name)
+    setter_name = 'set_' + name
     return property(
         lambda self: getattr(self, '_'+name),
         lambda self, value: getattr(self, setter_name)(value),
@@ -24,20 +30,16 @@ def dist(p1, p2):
 
 
 
-class Canvas(wx.Window):
+class Canvas(wx.Window, ViewBase):
     zoom = overridable_property('zoom')
     shift = overridable_property('shift')
-    p1 = overridable_property('p1')
-    p2 = overridable_property('p2')
     transient = overridable_property('transient')
     _zoom = 1.0
     _shift = 0.0, 0.0
-    _p1 = (0, 50)
-    _p2 = (100, 50)
     _transient = None
     bmp = None
-    airfoil = None
     def __init__(self, *args, **kwds):
+        ViewBase.__init__(self)
         wx.Window.__init__(self, *args, **kwds)
         
         self.SetBackgroundColour('white')
@@ -48,6 +50,27 @@ class Canvas(wx.Window):
         #self.Bind(wx.EVT_MOUSE_CAPTURE_LOST, self.capturelost_event)
         
         self.SetFocus()
+
+    def bmp_changed(self, model, old):
+        bmp = model.bmp
+        if bmp is None:
+            self.bmp = None
+        else:
+            f = StringIO(bmp)
+            im = wx.ImageFromStream(f)
+            self.bmp = im.ConvertToBitmap()
+
+    def zoom_changed(self, model, old):
+        pass
+
+    def p1_changed(self, model, old):
+        self.Refresh()
+    
+    def p2_changed(self, model, old):
+        self.Refresh()
+
+    def airfoil_changed(self, model, old):
+        self.Refresh()
 
     def on_paint(self, event):
         buffer = wx.EmptyBitmap(*self.Size)
@@ -61,8 +84,8 @@ class Canvas(wx.Window):
         shift = self._shift
         gc.Translate(-shift[0], -shift[1])
         
-        p1 = self._p1
-        p2 = self._p2
+        p1 = self.model.p1
+        p2 = self.model.p2
         alpha = math.atan2((p1[1]-p2[1]), p2[0]-p1[0])
         # Alpha >0 bedeutet eine Drehung des Bildes im Uhrzeigersinn
         gc.Rotate(alpha)
@@ -72,10 +95,10 @@ class Canvas(wx.Window):
         
         trafo =  gc.GetTransform()
         if 0:
-            print trafo.Get()
+            print (trafo.Get())
 
-            t2 = geometry.IDENTITY.Translate((-shift[0], -shift[1])).Rotate(alpha).Stretch(zoom, zoom)
-            print t2.Get()
+            t2 = geometry.IDENTITY.Translate((-shift[0], -shift[1])).Rotate(alpha).Scale(zoom, zoom)
+            print (t2.Get())
             
         gc.SetPen(wx.RED_PEN)
         #gc.SetBrush(wx.YELLOW_BRUSH)
@@ -97,8 +120,10 @@ class Canvas(wx.Window):
             gc.DrawEllipse(p[0], p[1], s, s)
             
         gc.PopState()
-        airfoil = self.airfoil
+        airfoil = self.model.airfoil
         if airfoil is not None:
+            pen = wx.Pen(colour="green", width=2.0/zoom)
+            gc.SetPen(pen)
             p1_ = trafo.TransformPoint(*p1)
             gc.Translate(p1_[0], p1_[1])
 
@@ -130,41 +155,31 @@ class Canvas(wx.Window):
             self._shift = shift
             self.Refresh()
             
-    def set_p1(self, p1):
-        if p1 != self._p1:
-            self._p1 = p1
-            self.Refresh()
-
-    def set_p2(self, p2):
-        if p2 != self._p2:
-            self._p2 = p2
-            self.Refresh()
-
     def set_transient(self, p):
         if p != self._transient:
             self._transient = p
             self.Refresh()
 
     def get_trafo(self):
-        p1 = self._p1
-        p2 = self._p2
+        p1 = self.model.p1
+        p2 = self.model.p2
         alpha = math.atan2((p1[1]-p2[1]), p2[0]-p1[0])
-        trafo = Translation(-wx.Point(*self._shift))
-        trafo = trafo(Rotation(-alpha))
+        trafo = geometry.Translation(-wx.Point(*self._shift))
+        trafo = trafo(geometry.Rotation(-alpha))
         # Achtung: der Ursprung des Koordinatensystems von wx liegt in
         # der linken oberen Ecke, y wächst nach unten. Dies entspricht
         # einem linkhändigen KS. Geometry geht dagegen von einem
         # rechtshändigen KS aus. Wir müssen daher alle Drehwinkel mit
         # -1 multiplizieren. 
-        trafo = trafo(Stretch(self._zoom))
+        trafo = trafo(geometry.Scale(self._zoom))
         #print "alpha=", alpha
         return trafo
             
     _dragstart = None # in screen coordinates
     def mouse_event(self, event):
         trafo = self.get_trafo()        
-        p1 = wx.Point(*self._p1)
-        p2 = wx.Point(*self._p2)
+        p1 = wx.Point(*self.model.p1)
+        p2 = wx.Point(*self.model.p2)
         p1_ = trafo(p1)
         p2_ = trafo(p2)
         
@@ -188,7 +203,6 @@ class Canvas(wx.Window):
                 self._current = None
                 self.SetCursor(wx.StockCursor(wx.CURSOR_DEFAULT))
         if event.Dragging() and self._current:
-            #print "current=", self._current
             inv = trafo.Inverse()
             p = inv.TransformPoint(event.Position)
             if self._dragstart is None:                
@@ -203,9 +217,9 @@ class Canvas(wx.Window):
             
             if self._transient is not None:
                 if self._current == 1:
-                    self.p1 = self._transient
+                    self.model.p1 = self._transient
                 elif self._current == 2:
-                    self.p2 = self._transient
+                    self.model.p2 = self._transient
             
             self._transient = None
             self._dragstart = None
@@ -231,11 +245,16 @@ def load_airfoil(p):
         yl.append(float(ys))
     return xl, yl
 
-if __name__ == '__main__':
+
+def test_00():
+    from .document import AnalysisModel
+    doc = AnalysisModel()
     app = wx.App()
     f = wx.Frame(None)
     canvas = Canvas(f)
-    canvas.load_image("ah79k135.gif")
+    canvas.set_model(doc)
+    s = open("test/ah79k135.gif", "rb").read()
+    doc.bmp = s
     f.Show()
 
 
@@ -243,12 +262,12 @@ if __name__ == '__main__':
     #canvas.zoom = 2
     canvas.p1 = 10, 100
     canvas.p2 = 500, 100
-    canvas.airfoil = load_airfoil("ag03.dat")
+    doc.airfoil = load_airfoil("test/ag03.dat")
     #canvas.shift = 100, 0
 
     
     
-    import testing
+    from . import testing
     testing.pyshell(locals())
     app.MainLoop()
 

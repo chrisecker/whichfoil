@@ -3,7 +3,7 @@
 #
 
 import weakref
-from properties import Properties, overridable_property
+from .properties import Properties, overridable_property
 
 
     

@@ -459,27 +459,22 @@ class Rotation(Trafo):
         
 def test_00():
     p = wx.Point(1, 2)
-    print 2*p
-    print p*2
-    print p/2
-    print p/2.0
-    
     trafo = Translation((2, 5))
-    print trafo(p)
+    print (trafo(p))
     
     inv = trafo.Inverse()
-    print inv(trafo(p))
+    print (inv(trafo(p)))
 
     size = wx.Size(10, 10)
     size2 = size.Grown(3, 4)
     w, h = size2
-    print w, h    
-    print wx.Rect(10, 10, 40, 30).Center()
+    print (w, h)    
+    print (wx.Rect(10, 10, 40, 30).Center())
 
 
 def test_01():
     t = IDENTITY.Translate((100, 0)).Rotate(0.25*3.141592)    
-    p = wx.Point(0.0, 0.0)
+    p = wx.Point(0, 0)
     x, y =  t.TransformPointFloat((0.0, 0.0))
     assert x>70
     assert y<-70

@@ -1,7 +1,8 @@
-from documentnode import DocumentNode, attribute
-from viewbase import ViewBase
 import json
-import os, sys
+import os
+import sys
+from .documentnode import DocumentNode, attribute
+from .viewbase import ViewBase
     
 
 
@@ -25,13 +26,14 @@ class AnalysisModel(DocumentNode):
     shift = attribute("shift")
     p1 = attribute("p1")
     p2 = attribute("p2")
-    bmp = attribute("bmp")
-    foil = attribute("foil")
+    bmp = attribute("bmp") # imagefile as string
+    airfoil = attribute("airfoil")
     
     _zoom = 1.0
     _shift = 0.0
-    _pi = 0, 50
+    _p1 = 0, 50
     _p2 = 100, 50
+    _bmp = None
     _airfoil = None
     
     def save_as(self, filename):

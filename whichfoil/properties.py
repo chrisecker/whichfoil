@@ -18,7 +18,7 @@ class Properties(object):
         """set(name=value, ...) sets property values according to the given 
         keyword arguments. Will only set attributes for which a descriptor exists."""
         cls = self.__class__
-        for name, value in kw.iteritems():
+        for name, value in kw.items():
             try:
                 s = getattr(cls, name).__set__
             except AttributeError:
@@ -33,8 +33,8 @@ def overridable_property(name, doc = None):
     the underlying object to get and set the property value, so that
     the property's behaviour may be easily overridden by subclasses."""
     
-    getter_name = intern('get_' + name)
-    setter_name = intern('set_' + name)
+    getter_name = 'get_' + name
+    setter_name = 'set_' + name
     return property(
         lambda self: getattr(self, getter_name)(),
         lambda self, value: getattr(self, setter_name)(value),
