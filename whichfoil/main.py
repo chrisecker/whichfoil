@@ -1,15 +1,41 @@
 # -*- coding: latin-1 -*-
 
 import wx
-
+from math import pi
 
 from .menu import mk_menu
 from .document import AnalysisModel, load_model
 from .view import Canvas
-
+from .bindwx import Binder, TextBinder, InvalidValue
 
 def _(x): return x
 
+
+class AngleBinder(TextBinder):
+    def fromstr(self, s):
+        value = s.split()[0]
+        try:
+            return float(value)*pi/180.0
+        except ValueError:
+            raise InvalidValue(s)
+
+    def tostr(self, value):
+        return u"%.1f °" % (value*180.0/pi)
+
+
+class FloatBinder(TextBinder):
+    def fromstr(self, s):
+        value = s.split()[0]
+        try:
+            return float(value)
+        except ValueError:
+            raise InvalidValue(s)
+
+    def tostr(self, value):
+        return u"%.1f" % value
+    
+    
+    
 class MainWindow(wx.Frame):
     file_entries = ['new', 'open', 'save', 'save_as', 'close']
     _filename = None
@@ -35,7 +61,7 @@ class MainWindow(wx.Frame):
         self.document = document
         #appcontext.document = document
 
-        canvas = Canvas(self)
+        self.canvas = canvas = Canvas(self)
         canvas.set_model(document)
         
         sizer.Add(canvas, 1, wx.EXPAND)
@@ -47,12 +73,14 @@ class MainWindow(wx.Frame):
         sizer2 = wx.BoxSizer(wx.VERTICAL)
         l1 = wx.StaticText(panel, label=_("angle:"))
         sizer2.Add(l1)
-        t1 = wx.TextCtrl(panel)
+        t1 = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
         sizer2.Add(t1)
+        AngleBinder(document, 'alpha', t1)
         l2 = wx.StaticText(panel, label=_("zoom:"))
         sizer2.Add(l2)
-        t2 = wx.TextCtrl(panel)
+        t2 = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
         sizer2.Add(t2)
+        FloatBinder(document, 'zoom', t2)
 
         panel.SetSizer(sizer2)
         

@@ -24,13 +24,15 @@ def load_model(filename):
 
 
 class AnalysisModel(DocumentNode):
+    alpha = attribute("alpha")
     zoom = attribute("zoom")
     shift = attribute("shift")
     p1 = attribute("p1")
     p2 = attribute("p2")
     bmp = attribute("bmp") # imagefile bytes array (py3) or string
     airfoil = attribute("airfoil")
-    
+
+    _alpha = 0.0
     _zoom = 1.0
     _shift = 0.0
     _p1 = 0, 50

@@ -3,7 +3,7 @@
 
 import wx
 
-from viewbase import ViewBase
+from .viewbase import ViewBase
 
 
 

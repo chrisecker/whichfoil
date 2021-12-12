@@ -1,12 +1,22 @@
 # -*- coding:latin-1 -*-
 
-"""
-Variante der affinen Geometry, die sich in wx integriert. Es werden 
+"""Variante der affinen Geometry, die sich in wx integriert. Es werden 
 Point, Rect und Size von wx verwendet. Es ist zu beachten, dass
 Koordinaten in Wx immer aus ganzen Zahlen bestehen.
 
 Der Trafo kann auch mit Float-Koordinaten umgehehn, wenn sie als Tupel
 übegeben werden: trafo.TransformPoint((1.3, 2.1))
+
+Achtung: wx verwendet ein linkshändiges Koordinatensystem. Das macht
+sich bei Transformationen bemerkbar. Trafos in wx haben zwar exakt die
+gleichen Koeffizienten, sie transformieren aber die Punkte anders. Um
+die jeweils gleiche Transformation z uerreichen, müssen winkel in wx
+mit -1 multipliziert werden. Dann stimmen die Koeffizienten nicht
+überein (die interne Formel von wx berücksichtigt das KS wohl.)
+
+Es sollte recht einfach sein, die Formel in TransformPoint so zu
+ändern, dass sie der von WX entspricht.
+
 """
 
 import math

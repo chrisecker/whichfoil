@@ -64,9 +64,28 @@ class Canvas(wx.Window, ViewBase):
             self.bmp = im.ConvertToBitmap()
         self.Refresh()
 
-    def zoom_changed(self, model, old):
-        pass
+    def alpha_changed(self, model, old):
+        #print("alpha changed")
 
+        # update shift etc.
+        if self.bmp is not None:
+            alpha = self.model.alpha
+            zoom = self.model.zoom
+            trafo =  geometry.IDENTITY.Rotate(alpha).Scale(zoom, zoom)
+            w, h = self.bmp.Size
+            l = (0, 0), (w, 0), (w, h), (0, h)
+            l_ = [trafo.TransformPointFloat(p) for p in l]
+            minx = min([p[0] for p in l_])
+            miny = min([p[1] for p in l_])
+            maxx = max([p[0] for p in l_])
+            maxy = max([p[1] for p in l_])
+            self.shift = minx, miny
+        self.Refresh()
+
+    def zoom_changed(self, model, old):
+        #print("zoom changed")
+        self.Refresh()
+    
     def p1_changed(self, model, old):
         self.Refresh()
     
@@ -76,6 +95,7 @@ class Canvas(wx.Window, ViewBase):
     def airfoil_changed(self, model, old):
         self.Refresh()
 
+    _radius = 14
     def on_paint(self, event):
         buffer = wx.EmptyBitmap(*self.Size)
         dc = wx.BufferedPaintDC(self, buffer)
@@ -90,59 +110,72 @@ class Canvas(wx.Window, ViewBase):
         
         p1 = self.model.p1
         p2 = self.model.p2
-        alpha = math.atan2((p1[1]-p2[1]), p2[0]-p1[0])
-        # Alpha >0 bedeutet eine Drehung des Bildes im Uhrzeigersinn
-        gc.Rotate(alpha)
+        #alpha = math.atan2((p1[1]-p2[1]), p2[0]-p1[0])
+        alpha = self.model.alpha
+        # Alpha >0 bedeutet eine Drehung des Bildes im Uhrzeigersinn!
+        gc.Rotate(-alpha)
         
-        zoom = self._zoom
+        zoom = self.model.zoom
         gc.Scale(zoom, zoom)
-        
-        trafo =  gc.GetTransform()
-        if 0:
-            print (trafo.Get())
 
-            t2 = geometry.IDENTITY.Translate((-shift[0], -shift[1])).Rotate(alpha).Scale(zoom, zoom)
-            print (t2.Get())
-            
-        gc.SetPen(wx.RED_PEN)
-        #gc.SetBrush(wx.YELLOW_BRUSH)
 
         bmp = self.bmp
         if bmp:
             gc.DrawBitmap(bmp, -0, -0, bmp.Width, bmp.Height)
-            
-        s = 10.0/zoom
-        pen = wx.Pen(colour="red", width=2.0/zoom)
+
+        r = self._radius/zoom
+        d = 2*r
+        w = 2.0/zoom    
+        pen = wx.Pen(colour="red", width=w)
         gc.SetPen(pen)
-        gc.DrawEllipse(p1[0], p1[1], s, s)
-        gc.DrawEllipse(p2[0], p2[1], s, s)
+        gc.DrawEllipse(p1[0]-r, p1[1]-r, d, d)
+        gc.DrawEllipse(p2[0]-r, p2[1]-r, d, d)
         
         p = self._transient
         if p:
             pen = wx.Pen(colour="grey", width=2.0/zoom)
             gc.SetPen(pen)
-            gc.DrawEllipse(p[0], p[1], s, s)
-            
-        gc.PopState()
-        airfoil = self.model.airfoil
-        if airfoil is not None:
-            pen = wx.Pen(colour="green", width=2.0/zoom)
-            gc.SetPen(pen)
-            p1_ = trafo.TransformPoint(*p1)
-            gc.Translate(p1_[0], p1_[1])
+            gc.DrawEllipse(p[0]-r, p[1]-r, d, d)
 
-            d = p1[0]-p2[0], p1[1]-p2[1]            
-            f = sqrt(d[0]*d[0]+d[1]*d[1])
-            xv, yv = airfoil
-            path = gc.CreatePath()
-            first = True
-            for x, y in zip(xv, yv):
-                if first:
-                    first = False
-                    path.MoveToPoint(x*f, -y*f)
-                else:
-                    path.AddLineToPoint(x*f, -y*f)
-            gc.StrokePath(path)
+        trafo =  gc.GetTransform()
+        if 0:
+            print ("wx", trafo.Get())
+            t2 = geometry.IDENTITY.Translate((-shift[0], -shift[1])).Rotate(alpha).Scale(zoom, zoom)
+            print ("ce", t2.Get())
+            import sys
+            sys.trafo = t2
+            sys.trafo_wx = trafo
+
+            
+        p1_ = trafo.TransformPoint(*p1)
+        p2_ = trafo.TransformPoint(*p2)
+        gc.PopState()
+        
+        airfoil = self.model.airfoil
+        if airfoil is None:
+            return
+        
+        pen = wx.Pen(colour="green", width=2.0/zoom)
+        gc.SetPen(pen)
+
+        f = dist(p1_, p2_)
+        alpha = math.atan2((p1_[1]-p2_[1]), p2_[0]-p1_[0])
+        t2 = geometry.Scale(f, -f).Rotate(alpha).Translate(p1_)
+        #print("scale factor:", f
+        
+        xv, yv = airfoil
+        path = gc.CreatePath()
+        first = True
+        print(t2.TransformPoint((0, 0)), t2.TransformPoint((1, 0)))
+
+        for p in zip(xv, yv):
+            p_ = t2.TransformPointFloat(p)
+            if first:
+                first = False
+                path.MoveToPoint(*p_)
+            else:
+                path.AddLineToPoint(*p_)
+        gc.StrokePath(path)
         
     def load_image(self, imagefile):
         bmp = wx.EmptyBitmap(1, 1)
@@ -161,23 +194,26 @@ class Canvas(wx.Window, ViewBase):
             
     def set_transient(self, p):
         if p != self._transient:
+            print("setting transient")
+            old = self._transient
             self._transient = p
-            self.Refresh()
-
+            d = 2*self._radius
+            if old is not None:
+                x, y = old
+                self.RefreshRect((x-d, y-d, x+d, y+d))
+            if p is not None:
+                x, y = p
+                self.RefreshRect((x-d, y-d, x+d, y+d))
+                
     def get_trafo(self):
         p1 = self.model.p1
         p2 = self.model.p2
-        alpha = math.atan2((p1[1]-p2[1]), p2[0]-p1[0])
-        trafo = geometry.Translation(-wx.Point(*self._shift))
-        trafo = trafo(geometry.Rotation(-alpha))
-        # Achtung: der Ursprung des Koordinatensystems von wx liegt in
-        # der linken oberen Ecke, y wächst nach unten. Dies entspricht
-        # einem linkhändigen KS. Geometry geht dagegen von einem
-        # rechtshändigen KS aus. Wir müssen daher alle Drehwinkel mit
-        # -1 multiplizieren. 
-        trafo = trafo(geometry.Scale(self._zoom))
-        #print "alpha=", alpha
-        return trafo
+        #alpha = math.atan2((p1[1]-p2[1]), p2[0]-p1[0])
+        alpha = self.model.alpha
+        shift = self.shift
+        zoom = self.model.zoom
+        return geometry.IDENTITY.Translate((-shift[0], -shift[1])).Rotate(alpha).Scale(zoom, zoom)
+    
             
     _dragstart = None # in screen coordinates
     def mouse_event(self, event):
@@ -186,6 +222,8 @@ class Canvas(wx.Window, ViewBase):
         p2 = wx.Point(*self.model.p2)
         p1_ = trafo(p1)
         p2_ = trafo(p2)
+
+        #print(p1_, event.Position)
         
         inv = trafo.Inverse()
         #print "trafo=", trafo
@@ -206,16 +244,18 @@ class Canvas(wx.Window, ViewBase):
             else:
                 self._current = None
                 self.SetCursor(wx.StockCursor(wx.CURSOR_DEFAULT))
+                
         if event.Dragging() and self._current:
             inv = trafo.Inverse()
             p = inv.TransformPoint(event.Position)
             if self._dragstart is None:                
                 self._dragstart = event.Position
             else:
-                self.Refresh()
+                pass # ??? self.Refresh()
             points = None, p1_, p2_
-            self._transient = inv(points[self._current]+event.Position-self._dragstart)
-            self.Refresh()
+            self.transient = inv(points[self._current]+event.Position-self._dragstart)
+            #self.Refresh()
+            
         elif event.ButtonUp():        
             #print "release"
             
