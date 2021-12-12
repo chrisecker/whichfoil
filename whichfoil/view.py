@@ -51,6 +51,9 @@ class Canvas(wx.Window, ViewBase):
         
         self.SetFocus()
 
+    def model_added(self, model):
+        self.bmp_changed(model, None)
+        
     def bmp_changed(self, model, old):
         bmp = model.bmp
         if bmp is None:
@@ -59,6 +62,7 @@ class Canvas(wx.Window, ViewBase):
             f = StringIO(bmp)
             im = wx.ImageFromStream(f)
             self.bmp = im.ConvertToBitmap()
+        self.Refresh()
 
     def zoom_changed(self, model, old):
         pass
@@ -217,9 +221,9 @@ class Canvas(wx.Window, ViewBase):
             
             if self._transient is not None:
                 if self._current == 1:
-                    self.model.p1 = self._transient
+                    self.model.p1 = tuple(self._transient)
                 elif self._current == 2:
-                    self.model.p2 = self._transient
+                    self.model.p2 = tuple(self._transient)
             
             self._transient = None
             self._dragstart = None
