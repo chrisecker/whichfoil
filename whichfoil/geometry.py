@@ -17,6 +17,43 @@ mit -1 multipliziert werden. Dann stimmen die Koeffizienten nicht
 Es sollte recht einfach sein, die Formel in TransformPoint so zu
 ändern, dass sie der von WX entspricht.
 
+----
+https://github.com/wxWidgets/wxWidgets/blob/master/src/common/affinematrix2d.cpp
+
+
+// applies that matrix to the point
+//                           | m_11  m_12   0 |
+// | src.m_x  src._my  1 | x | m_21  m_22   0 |
+//                           | m_tx  m_ty   1 |
+wxPoint2DDouble
+wxAffineMatrix2D::DoTransformPoint(const wxPoint2DDouble& src) const
+{
+    if ( IsIdentity() )
+        return src;
+
+    return wxPoint2DDouble(src.m_x * m_11 + src.m_y * m_21 + m_tx,
+                           src.m_x * m_12 + src.m_y * m_22 + m_ty);
+}
+
+Kann man das einfacher schreiben?
+
+
+ | x'|               | m_11  m_12   0 |
+ | y'| = |x  y  1| * | m_21  m_22   0 |
+ | 1 |               | m_tx  m_ty   1 |
+
+
+
+
+
+Skencil:
+-                    / m11 m12 v1 \ / x \
+-                    |            | |   |
+-                 ^= | m21 m22 v2 | | y |
+-                    |            | |   |
+-                    \ 0   0   1  / \ 1 /
+
+
 """
 
 import math
@@ -28,14 +65,14 @@ from copy import copy
 from wx import Point, Rect
 
 
-# Methoden für Size
+### Methods for Size ###
 def grown(size, dx, dy):
     r = wx.Size(*size)
     r.IncBy(dx, dy)
     return r    
 wx.Size.Grown = grown
 
-# Methoden für Rect
+### Methods for Rect ###
 def center(rect):
     position = rect.Position
     w, h = rect.Size
@@ -44,7 +81,7 @@ wx.Rect.Center = center
 
 def moved(rect, point):
     r = wx.Rect(*rect)
-    r.Position += wx.Point(*point)
+    r.Position += wx.Point2D(*point)
     return r    
 wx.Rect.Moved = moved
 
@@ -81,74 +118,63 @@ def _lt(self, other):
     return self.Area < other.Area
 wx.Rect.__lt__ = _lt
         
+def _transform_rect(self, matrix):
+    # XXX Does not work anymore. FIX THIS
+    return wx.Rect(
+        matrix.TransformPoint(self.Left, self.Bottom), 
+        matrix.TransformPoint(self.Right, self.Top))
+wx.Rect.Transformed = _transform_rect
 
 
-# Methoden für Point
-# ACHTUNG:
-#
-# wx.Point is immutable. "point += xxx" kann zu abstürzen führen
+
+### Methods for Point2D ###
+
 def multiplied(point, f):
     x, y = point
-    return wx.Point(f*x, f*y)
-wx.Point.__mul__ = multiplied
+    return wx.Point2D(f*x, f*y)
+wx.Point2D.__mul__ = multiplied
 wx.Size.__mul__ = multiplied
-wx.Point.__rmul__ = multiplied
+wx.Point2D.__rmul__ = multiplied
 wx.Size.__rmul__ = multiplied
 
 def divided(point, f):
     x, y = point
-    return wx.Point(x/f, y/f)
-wx.Point.__div__ = divided
+    return wx.Point2D(x/f, y/f)
+wx.Point2D.__div__ = divided
 wx.Size.__div__ = divided
-wx.Point.__rdiv__ = divided
+wx.Point2D.__rdiv__ = divided
 wx.Size.__rdiv__ = divided
 
 def negated(point):
     x, y = point
-    return wx.Point(-x, -y)
-wx.Point.__neg__ = negated
+    return wx.Point2D(-x, -y)
+wx.Point2D.__neg__ = negated
 
 def length(point):
     x, y = point
     return math.sqrt(x*x+y*y)
-wx.Point.Length = length   
+wx.Point2D.Length = length   
 
 def polar(point):
     x,y = point
     return math.hypot(x, y), math.atan2(x,y)
-wx.Point.Polar = polar
+wx.Point2D.Polar = polar
 
 def normalized(point):
     x,y = point
     l = math.hypot(x, y)
-    return wx.Point(x/l, y/l)
-wx.Point.normalized = normalized
+    return wx.Point2D(x/l, y/l)
+wx.Point2D.normalized = normalized
 
 def transformed(point, trafo):
-    return trafo.TransformPoint(point)
-wx.Point.Transformed = transformed    
+    return trafo.TransformPoint(*point)
+wx.Point2D.Transformed = transformed    
         
 def rounded(point):
     x, y = point
-    return wx.Point(round(x), round(y))
-wx.Point.Rounded = rounded
+    return wx.Point2D(round(x), round(y))
+wx.Point2D.Rounded = rounded
 
-
-def xxdist_point_line(p, a, b):
-    """Berechnet den Abstand zwischen dem Punkt p und dem Segment ab
-    
-       p, a und b brauchen keine Punkte zu sein
-    """
-    x1, y1 = a
-    x2, y2 = b
-    x3, y3 = p
-    u = ((x3-x1)*(x2-x1)+(y3-y1)*(y2-y1))/sqrt((x2-x1)**2+(y2-y1)**2)
-    
-    x = x1 + u*(x2-x1)
-    y = y1 + u*(y2-y1)     
-    
-    return sqrt((x-x3)**2+(y-y3)**2)
-    
 
 def dist_point_line(c, a, b):
     cx, cy = map(float, c)
@@ -252,7 +278,7 @@ def dist_point_line(c, a, b):
     return distanceSegment
 
         
-class _PointArray:
+class PointArray:
 
     _data = None # eine Liste von Points
     def __init__(self, data=None):
@@ -275,6 +301,9 @@ class _PointArray:
     def __len__(self):
         return len(self._data)
         
+    def Insert(self, i, point):
+        self._data.insert(i, wx.Point2D(*point))
+        
     def Append(self, p):
         self.Insert(len(self._data), p)
         
@@ -288,206 +317,137 @@ class _PointArray:
     def GetBounds(self):
         data = self._data
         if not len(data):
-            return wx.Rect()
-            
+            return wx.Rect()            
         point = data[0]
         xmin = xmax = point[0]
-        ymin = ymax = point[1]
-        
+        ymin = ymax = point[1]        
         for point in data[1:]:
             xmin = min(xmin, point[0])
             xmax = max(xmax, point[0])
             ymin = min(ymin, point[1])
-            ymax = max(ymax, point[1])
-            
+            ymax = max(ymax, point[1])            
         return wx.Rect(xmin, ymin, xmax, ymax)
     
-class FloatPointArray(_PointArray):
-    """
-    Die Punkte werden nicht als Integer, sondern als Float abgespeichert.
-    """
-    def Insert(self, i, point):        
-        x, y = point
-        self._data.insert(float(x), float(y))
+        
+        
 
-    def Transformed(self, trafo):
-        r = []
-        tranformed = trafo.TransformPointFloat
-        for point in self._data:
-            r.append(transformed(point))
-        return PointArray(data=r)
-        
-    def Rounded(self):
-        data = [wx.Point(round(x), round(y)) for x, y in self._data]
-        return IntPointArray(data)
-        
-        
-        
-class IntPointArray(_PointArray):
-    def Insert(self, i, point):
-        self._data.insert(i, wx.Point(*point))
-        
-PointArray = IntPointArray
+class MatrixFactory:
+    def __init__(self):
+        dc = wx.MemoryDC()
+        bmp = wx.EmptyBitmap(0, 0)
+        dc.SelectObject(bmp)
+        # https://wxpython.org/Phoenix/docs/html/wx.MemoryDC.html
+        # A bitmap must be selected into the new memory DC before it
+        # may be used for anything.
+        self.gc = wx.GraphicsContext.Create(dc)
 
-        
-class SingularMatrix(Exception):
-    pass
+    def CreateMatrix(self, *args, **kwds):
+        return self.gc.CreateMatrix(*args, **kwds)
 
-class Trafo(object):
-    """
-Trafo implements a 2D affine transformation T:
- 
-           / x \   / m11 m12 \ / x \   / v1 \
-       T * |   | = |         | |   | + |    |
-           \ y /   \ m21 m22 / \ y /   \ v2 /
- 
- 
-or, in homogeneous coordinates:
- 
-                    / m11 m12 v1 \ / x \
-                    |            | |   |
-                 ^= | m21 m22 v2 | | y |
-                    |            | |   |
-                    \ 0   0   1  / \ 1 /
-
-Code is based on Sketch 0.6.17
-"""
-
-    def __init__(self, m11, m12, m21, m22, v1, v2):
-        self.m11 = float(m11)
-        self.m12 = float(m12)
-        self.m21 = float(m21)
-        self.m22 = float(m22)
-        self.v1 = float(v1)
-        self.v2 = float(v2)
-        
-    def __repr__(self):
-        return "Trafo(%.10g, %.10g, %.10g, %.10g, %.10g, %.10g)" % \
-               (self.m11, self.m12, self.m21, self.m22, self.v1, self.v2)
-
-    def __cmp__(self, t):
-        if self.m11 == t.m11 and self.m12 == t.m12 and \
-           self.m21 == t.m21 and self.m22 == t.m22 and \
-           self.v1 == t.v1 and self.v2 == t.v2:
-            return 1
-        return cmp(id(self), id(t))
+_MATRIXFACTORY = None
+def create_matrix(*args, **kwds):
+    global _MATRIXFACTORY
+    if _MATRIXFACTORY is None:
+        _MATRIXFACTORY = MatrixFactory()
+    return _MATRIXFACTORY.CreateMatrix(*args, **kwds)
     
-    def __call__(self, *args):
-        if len(args) == 1:
-            p = args[0]
-            return p.Transformed(self)
+### Matrix methods ###    
+def _M__repr__(matrix, *args):
+    return "Matrix"+repr(matrix.Get())
+wx.GraphicsMatrix.__repr__ = _M__repr__
 
-    def Get(self):
-        return self.m11, self.m12, self.m21, self.m22, self.v1, self.v2
 
-    def TransformPoint(self, p):
-        # Note that wx points are based on integers. If you do not
-        # want that, use TransformPointFloat. ... I know!
-        x, y = p
-        return wx.Point(self.m11 * x + self.m12 * y + self.v1,
-                        self.m21 * x + self.m22 * y + self.v2)
+def _M__call__(matrix, other):
+    return other.Transformed(matrix)
+wx.GraphicsMatrix.__call__ = _M__call__
+
+
+def _MCopy(matrix):
+    values = matrix.Get()
+    m = create_matrix()
+    m.Set(*values)
+    return m
+wx.GraphicsMatrix.Copy = _MCopy
+
+def _MTransformed(self, m):
+    r = self.Copy()
+    r.Concat(m)
+    return r
+wx.GraphicsMatrix.Transformed = _MTransformed
+
+def _MRotated(self, angle, center=(0, 0)):
+    # XXX TODO: implement center
+    r = self.Copy()
+    r.Rotate(angle)
+    return r
+wx.GraphicsMatrix.Rotated = _MRotated
+    
+def _MTranslated(self, p):
+    r = self.Copy()
+    r.Translate(*p)
+    return r    
+wx.GraphicsMatrix.Translated = _MTranslated
+
+def _MScaled(self, f1, f2=None):
+    r = self.Copy()
+    if f2 is None:
+        f2 = f1
+    r.Scale(f1, f2)
+    return r    
+wx.GraphicsMatrix.Scaled = _MScaled
                      
-    def TransformPointFloat(self, p):
-        x, y = p
-        return (self.m11 * x + self.m12 * y + self.v1,
-                self.m21 * x + self.m22 * y + self.v2)
-                     
-    def TransformRect(self, r):
-        return wx.Rect(
-            self.transform_xy(r.Left, r.Bottom), 
-            self.transform_xy(r.Right, r.Top))
-
-    def TransformTrafo(self, t):
-        return Trafo(self.m11*t.m11 + self.m12*t.m21,
-                     self.m21*t.m11 + self.m22*t.m21,
-                     self.m11*t.m12 + self.m12*t.m22,
-                     self.m21*t.m12 + self.m22*t.m22,
-                     self.m11*t.v1 + self.m12*t.v2 +self.v1,
-                     self.m21*t.v1 + self.m22*t.v2 +self.v2)
-
-    def Transformed(self, trafo):
-        return trafo.TransformTrafo(self)
-
-    def Rotate(self, angle, center=(0, 0)):
-        return Rotation(angle, center).TransformTrafo(self)
-
-    def Translate(self, p):
-        return Translation(p).TransformTrafo(self)
-
-    def Scale(self, f1, f2=None):
-        return Scale(f1, f2).TransformTrafo(self)
-                     
-    def Inverse(self):
-        det = float(self.m11 * self.m22 - self.m12 * self.m21)
-        #print "det=", det
-
-        if det == 0.0:
-            raise SingularMatrix("inverting singular matrix")
-        
-        m11 = self.m22 / det
-        m12 = -self.m12 / det
-        m21 = -self.m21 / det
-        m22 = self.m11 / det
-
-        r = Trafo(m11, m12, m21, m22,
-                  -m11 * self.v1 - m12 * self.v2,
-                  -m21 * self.v1 - m22 * self.v2);
-        return r
           
-
-IDENTITY = Trafo(1.0, 0, 0, 1.0, 0, 0)
-
-
-class Scale(Trafo):
-    def __init__(self, f1, f2=None):
-        if f2 is None:
-            f2 = f1
-        Trafo.__init__(self, float(f1), 0, 0, float(f2), 0, 0)
-        
-
-class Translation(Trafo):
-    def __init__(self, p):
-        Trafo.__init__(self, 1., 0,0,1., p[0], p[1])
-
-        
-class Rotation(Trafo):
-    def __init__(self, angle, center = (0,0)):
-        s = math.sin(angle)
-        c = math.cos(angle)
-        cx, cy = center
-        
-        # compute offset.
-        # The rotation around center is
-        # T(p) = center + M * (p - center)
-        # => offset = center - M * center
-     
-        offx = cx - c * cx + s * cy
-        offy = cy - s * cx - c * cy
-
-        Trafo.__init__(self, c, s, -s, c, offx, offy)
+def _eq(a, b):
+    # compares values a and b
+    return abs(a-b) < 1e-8
 
         
 def test_00():
-    p = wx.Point(1, 2)
-    trafo = Translation((2, 5))
-    print (trafo(p))
-    
-    inv = trafo.Inverse()
-    print (inv(trafo(p)))
-
-    size = wx.Size(10, 10)
-    size2 = size.Grown(3, 4)
-    w, h = size2
-    print (w, h)    
-    print (wx.Rect(10, 10, 40, 30).Center())
+    "Matrix.Copy"
+    f = MatrixFactory()
+    m = f.CreateMatrix()
+    m_ = m.Copy()
+    p = x, y = wx.Point2D(1, 2)
+    assert x == 1.0
+    assert y == 2.0
+    x, y = m.TransformPoint(*p)
+    assert x == 1.0
+    assert y == 2.0
+    m2 = m.Rotated(45*math.pi/180.0)
+    x, y = m2.TransformPoint(*p)
+    assert _eq(x, -2.0)
+    assert _eq(y, 1.0)
+    assert m.IsIdentity()
+    assert not m2.IsIdentity()
 
 
 def test_01():
-    t = IDENTITY.Translate((100, 0)).Rotate(0.25*3.141592)    
-    p = wx.Point(0, 0)
-    x, y =  t.TransformPointFloat((0.0, 0.0))
-    assert x>70
-    assert y<-70
+    "Matrix.__call__"
+    m = create_matrix().Translated((100, 0)).Rotated(10*3.141592/180.0)
+
+    # transform a point
+    p = wx.Point2D(0, 0)
+    print m(p)
+
+    # transform a matrix
+    m_ = create_matrix().Translated((100, 0))
+    print m(m_)
+    
+    # transform a rect
+    #r = wx.Rect(0, 0, 100, 200)
+    #print m(r)
+
+    
+
+def test_02():
+    deg = 3.141592/180.0
+    t1 = IDENTITY.Translate((0, 0)).Rotate(10*deg)    
+    t2 = IDENTITY.Rotate(10*deg)
+    print (t1)
+    print (t2)
+    assert repr(t1) == repr(t2)
     
 if __name__ == '__main__':
+    app = wx.App()
     test_01()
+    print "ok"
