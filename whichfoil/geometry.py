@@ -129,6 +129,22 @@ wx.Rect.Transformed = _transform_rect
 
 ### Methods for Point2D ###
 
+def sub(point, other):
+    return wx.Point2D(point[0]-other[0], point[1]-other[1])
+wx.Point2D.__sub__ = sub
+
+def rsub(point, other):
+    return wx.Point2D(other[0]-point[0], other[1]-point[1])
+wx.Point2D.__rsub__ = rsub
+
+def add(point, other):
+    return wx.Point2D(point[0]+other[0], point[1]+other[1])
+wx.Point2D.__add__ = add
+
+def radd(point, other):
+    return wx.Point2D(other[0]+point[0], other[1]+point[1])
+wx.Point2D.__radd__ = radd
+
 def multiplied(point, f):
     x, y = point
     return wx.Point2D(f*x, f*y)
@@ -164,10 +180,10 @@ def normalized(point):
     x,y = point
     l = math.hypot(x, y)
     return wx.Point2D(x/l, y/l)
-wx.Point2D.normalized = normalized
+wx.Point2D.Normalized = normalized
 
 def transformed(point, trafo):
-    return trafo.TransformPoint(*point)
+    return wx.Point2D(*trafo.TransformPoint(*point))
 wx.Point2D.Transformed = transformed    
         
 def rounded(point):
@@ -395,7 +411,14 @@ def _MScaled(self, f1, f2=None):
     r.Scale(f1, f2)
     return r    
 wx.GraphicsMatrix.Scaled = _MScaled
-                     
+
+def _MInverted(self):
+    r = self.Copy()
+    # XXX WX does not throw in exception if matrix is singular. Should be reported!
+    r.Invert()
+    return r    
+wx.GraphicsMatrix.Inverted = _MInverted
+
           
 def _eq(a, b):
     # compares values a and b
@@ -427,11 +450,11 @@ def test_01():
 
     # transform a point
     p = wx.Point2D(0, 0)
-    print m(p)
+    #print m(p)
 
     # transform a matrix
     m_ = create_matrix().Translated((100, 0))
-    print m(m_)
+    #print m(m_)
     
     # transform a rect
     #r = wx.Rect(0, 0, 100, 200)
@@ -450,4 +473,4 @@ def test_02():
 if __name__ == '__main__':
     app = wx.App()
     test_01()
-    print "ok"
+    print ("ok")
