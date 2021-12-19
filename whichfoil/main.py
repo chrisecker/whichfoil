@@ -5,7 +5,8 @@ from math import pi
 
 from .menu import mk_menu
 from .document import AnalysisModel, load_model
-from .view import Canvas
+from .view import Canvas, load_airfoil
+
 from .bindwx import Binder, TextBinder, InvalidValue
 
 def _(x): return x
@@ -32,9 +33,83 @@ class FloatBinder(TextBinder):
             raise InvalidValue(s)
 
     def tostr(self, value):
-        return u"%.1f" % value
+        return str(value)
+        #return u"%.1f" % value
     
-    
+
+class AirfoilBrowser(wx.Frame):
+    path = "/home/ecker/foils" # XXX
+    def __init__(self, main):
+        self.main = main
+        self.read_foils()
+        wx.Frame.__init__(self, None)
+        s = wx.BoxSizer(wx.VERTICAL)
+        lb = wx.ListBox(self)
+        lb.Bind(wx.EVT_LISTBOX_DCLICK, self.on_load)
+        s.Add(lb, 1, wx.EXPAND)
+        #b = wx.Button(self, label="load")
+        #b.Bind(wx.EVT_BUTTON, self.on_load)
+        #s.Add(b, 0, wx.EXPAND)
+        b = wx.Button(self, label="filter")
+        b.Bind(wx.EVT_BUTTON, self.on_filter)
+        s.Add(b, 0, wx.EXPAND)
+
+        s2 = wx.BoxSizer(wx.HORIZONTAL)
+        l = wx.StaticText(self, label="delta:")
+        s2.Add(l, 1, wx.ALL, 5)
+        t = wx.TextCtrl(self, style=wx.TE_PROCESS_ENTER)
+        t.Bind(wx.EVT_TEXT_ENTER, self.on_delta)
+        t.Value = "0.005"
+        self.t = t
+        s2.Add(t, 0, wx.ALL, 5)
+        s.Add(s2, 0)         
+        self.Sizer = s
+        self.lb = lb
+        self.Show()
+        
+    def read_foils(self):
+        foils = {}
+        import os
+        for name in os.listdir(self.path):
+            p = os.path.join(self.path, name)
+            xl, yl = load_airfoil(p)
+            foils[name] = xl, yl
+        self.foils = foils
+
+    def apply_filter(self, upper, lower, delta=0.005):
+        r = set()
+        for name, foil in self.foils.items():
+            y1 = min(foil[1])
+            y2 = max(foil[1])
+            if abs(y1+lower) > delta:
+                 continue
+            if abs(y2-upper) > delta:
+                 continue
+            r.add(name)
+        self.lb.SetItems(sorted(r))
+
+    def on_filter(self, event):
+        delta = float(self.t.Value)
+        upper = self.main.document.upper
+        lower = self.main.document.lower
+        self.apply_filter(upper, lower, delta)
+
+    def on_delta(self, event):
+        t = self.t
+        try:
+            delta = float(t.Value)
+        except:
+            delta = 0.0
+        if delta<=0:
+            delta = 0.0
+        t.Value = str(delta)
+                
+    def on_load(self, event):
+        i = event.GetSelection()
+        name = self.lb.Items[i]
+        airfoil = self.foils[name]
+        self.main.document.airfoil = airfoil
+        print("Setting airfoil", name)
     
 class MainWindow(wx.Frame):
     file_entries = ['new', 'open', 'save', 'save_as', 'load_image', 'close']
@@ -72,8 +147,12 @@ class MainWindow(wx.Frame):
 
         sizer2 = wx.BoxSizer(wx.VERTICAL)
 
+        t = wx.Button(panel, label=u"Browse Airfoils")
+        t.Bind(wx.EVT_BUTTON, self.on_browser)
+        sizer2.Add(t)
+        
         t = wx.Button(panel, label=u"Mirror")
-        self.Bind(wx.EVT_BUTTON, self.on_mirror)
+        t.Bind(wx.EVT_BUTTON, self.on_mirror)
         sizer2.Add(t)
 
         l = wx.StaticText(panel, label=_("angle:"))
@@ -99,6 +178,18 @@ class MainWindow(wx.Frame):
         t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
         sizer2.Add(t)
         FloatBinder(document, 'yshift', t)
+
+        l = wx.StaticText(panel, label=_("upper camber:"))
+        sizer2.Add(l)
+        t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
+        sizer2.Add(t)
+        FloatBinder(document, 'upper', t)
+
+        l = wx.StaticText(panel, label=_("lower camber:"))
+        sizer2.Add(l)
+        t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
+        sizer2.Add(t)
+        FloatBinder(document, 'lower', t)
         
         panel.SetSizer(sizer2)
         
@@ -107,6 +198,9 @@ class MainWindow(wx.Frame):
         #sizer2.Fit(self)
         #self.Layout()
 
+    def on_browser(self, event):
+        browser = AirfoilBrowser(self)
+    
     def on_mirror(self, event):
         self.document.mirror = not self.document.mirror
 
@@ -155,6 +249,7 @@ class MainWindow(wx.Frame):
         if dlg.ShowModal() == wx.ID_OK:
             path = dlg.GetPath()
             self._save_as(path)
+            self._filename = path
         dlg.Destroy()        
         
     def close(self, event=None):
@@ -209,11 +304,12 @@ def test_00():
     #canvas.zoom = 2
     #canvas.p1 = 10, 100
     #canvas.p2 = 500, 100
-    from .view import load_airfoil
-    main.document.airfoil = load_airfoil("test/ag03.dat")
+    main.document.airfoil = load_airfoil("foils/ah79k135-il.dat") # ag03.dat
     s = open("test/ah79k135.gif", "rb").read()
-    main.document.bmp = s
-
+    doc = main.document
+    doc.bmp = s
+    doc.upper = 0.09859762675296653
+    doc.lower = 0.03926645091693633
     #canvas.shift = 100, 0
 
     

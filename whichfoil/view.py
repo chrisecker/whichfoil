@@ -202,7 +202,7 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         gc.DrawEllipse(p2[0]-r, p2[1]-r, d, d)
 
         p12 = p2-p1
-        s = 0.5*wx.Point2D(p12[1], -p12[0]) # senkrechte
+        s = wx.Point2D(p12[1], -p12[0]) # senkrechte
         center = 0.5*(p1+p2) # Mitte zwischen p1 und p2
         p3 = center-model.lower*s
         gc.DrawEllipse(p3[0]-r, p3[1]-r, d, d)
@@ -271,7 +271,7 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         p2_ = image2window(p2)
 
         p12 = p2-p1
-        s = 0.5*wx.Point2D(p12[1], -p12[0]) # senkrechte
+        s = wx.Point2D(p12[1], -p12[0]) # senkrechte
         center = 0.5*(p1+p2) # Mitte zwischen p1 und p2
         p3 = center-model.lower*s
         p4 = center+model.upper*s
@@ -329,9 +329,9 @@ class Canvas(wx.ScrolledWindow, ViewBase):
             self._current = None
             
 
-def load_airfoil(p):
-    #import numpy
-    #fn = "NHX021E DAT/NHX021E - 001.dat"
+def load_airfoil(p, warnings=None):
+    if warnings is None:
+        warnings = []
     xl = []
     yl = []
     name = None
@@ -343,9 +343,15 @@ def load_airfoil(p):
             name = s
             continue
         #print l
-        xs, ys = l.split()
-        xl.append(float(xs))
-        yl.append(float(ys))
+        try:
+            xs, ys = l.split()
+            xs = float(xs)
+            ys = float(ys)
+        except:
+            warnings.append((p, repr(l)))
+            continue
+        xl.append(xs)
+        yl.append(ys)
     return xl, yl
 
 
