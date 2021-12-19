@@ -71,17 +71,30 @@ class MainWindow(wx.Frame):
         sizer.Add(panel, 0, wx.EXPAND)
 
         sizer2 = wx.BoxSizer(wx.VERTICAL)
-        l1 = wx.StaticText(panel, label=_("angle:"))
-        sizer2.Add(l1)
-        t1 = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
-        sizer2.Add(t1)
-        AngleBinder(document, 'alpha', t1)
-        l2 = wx.StaticText(panel, label=_("zoom:"))
-        sizer2.Add(l2)
-        t2 = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
-        sizer2.Add(t2)
-        FloatBinder(document, 'zoom', t2)
+        l = wx.StaticText(panel, label=_("angle:"))
+        sizer2.Add(l)
+        t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
+        sizer2.Add(t)
+        AngleBinder(document, 'alpha', t)
+        
+        l = wx.StaticText(panel, label=_("zoom:"))
+        sizer2.Add(l)
+        t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
+        sizer2.Add(t)
+        FloatBinder(document, 'zoom', t)
 
+        l = wx.StaticText(panel, label=_("xshift:"))
+        sizer2.Add(l)
+        t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
+        sizer2.Add(t)
+        FloatBinder(document, 'xshift', t)
+
+        l = wx.StaticText(panel, label=_("yshift:"))
+        sizer2.Add(l)
+        t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
+        sizer2.Add(t)
+        FloatBinder(document, 'yshift', t)
+        
         panel.SetSizer(sizer2)
         
         

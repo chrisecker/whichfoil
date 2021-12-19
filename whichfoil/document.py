@@ -31,10 +31,13 @@ class AnalysisModel(DocumentNode):
     p2 = attribute("p2")
     bmp = attribute("bmp") # imagefile bytes array (py3) or string
     airfoil = attribute("airfoil")
+    xshift = attribute("xshift")
+    yshift = attribute("yshift")
 
     _alpha = 0.0
     _zoom = 1.0
-    _shift = 0.0
+    _xshift = 0.0
+    _yshift = 0.0
     _p1 = 0, 50
     _p2 = 100, 50
     _bmp = None
