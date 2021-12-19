@@ -26,7 +26,7 @@ def overridable_property(name, doc = None):
 
 
 
-class Canvas(wx.Window, ViewBase):
+class Canvas(wx.ScrolledWindow, ViewBase):
     # Canvas uses 3 coordinate system:
     # - image coordinates
     # - screen coordinates
@@ -41,9 +41,32 @@ class Canvas(wx.Window, ViewBase):
     _shift = 0.0, 0.0
     _transient = None
     bmp = None
-    def __init__(self, *args, **kwds):
+    def update_scroll(self):
+        if self.model is None:
+            return
+        m = self.get_image2window()
+        bmp = self.bmp
+        if bmp is None:
+            w = h = 100
+        else:
+            w, h = bmp.Size
+        xl = []
+        yl = []
+        for p in [(0, 0), (0, h), (w, h), (w, 0)]:
+            x, y = m.TransformPoint(*p)
+            xl.append(x)
+            yl.append(y)
+        origin = self.origin = min(xl), min(yl)
+        vw = max(xl)-origin[0]
+        vh = max(yl)-origin[1]
+        self.SetVirtualSize((vw, vh))
+        scrollrate = 10, 10
+        self.SetScrollRate(*scrollrate)
+    
+    def __init__(self, parent):
         ViewBase.__init__(self)
-        wx.Window.__init__(self, *args, **kwds)
+        wx.ScrolledWindow.__init__(self, parent)
+        # not implemented. idiots. self.AlwaysShowScrollbars(True, True)
         
         self.SetBackgroundColour('white')
         self.Bind(wx.EVT_PAINT, self.on_paint)
@@ -51,8 +74,12 @@ class Canvas(wx.Window, ViewBase):
         
         self.Bind(wx.EVT_MOUSE_EVENTS, self.mouse_event)
         #self.Bind(wx.EVT_MOUSE_CAPTURE_LOST, self.capturelost_event)
+        self.Bind(wx.EVT_SCROLL, self.on_scroll)
+        self.Bind(wx.EVT_SCROLLBAR, self.on_scroll)
+        self.Bind(wx.EVT_SCROLLWIN, self.on_scroll)
         
         self.SetFocus()
+        self.update_scroll()
 
     def model_added(self, model):
         self.bmp_changed(model, None)
@@ -65,11 +92,14 @@ class Canvas(wx.Window, ViewBase):
             f = StringIO(bmp)
             im = wx.ImageFromStream(f)
             self.bmp = im.ConvertToBitmap()
+        self.update_scroll()
         self.Refresh()
 
     def alpha_changed(self, model, old):
         #print("alpha changed")
 
+        self.update_scroll()
+        
         self.Refresh()
         # update shift etc.
         if self.bmp is not None:
@@ -88,6 +118,7 @@ class Canvas(wx.Window, ViewBase):
         self.Refresh()
 
     def zoom_changed(self, model, old):
+        self.update_scroll()
         self.Refresh()
     
     def p1_changed(self, model, old):
@@ -106,7 +137,11 @@ class Canvas(wx.Window, ViewBase):
         self.Refresh()
 
     def get_image2window(self):
-        w, h = self.Size
+        bmp = self.bmp
+        if bmp is None:
+            w = h = 100
+        else:
+            w, h = bmp.Size
         #alpha = math.atan2((p1[1]-p2[1]), p2[0]-p1[0])
         alpha = self.model.alpha
         # Alpha >0 bedeutet eine Drehung des Bildes im Uhrzeigersinn!
@@ -118,6 +153,17 @@ class Canvas(wx.Window, ViewBase):
             .Translated((-0.5*w, -0.5*h)).Scaled(zoom, zoom)
         return m
 
+    origin = (0, 0)
+    def on_scroll(self, event):
+        dx, dy = self.GetScrollPixelsPerUnit()
+        ox, oy = self.origin
+        if event.GetOrientation() == wx.VERTICAL:
+            y = dy*event.GetPosition()
+            self.model.yshift = -y-oy
+        else:
+            x = dx*event.GetPosition()
+            self.model.xshift = -x-ox        
+                    
     _radius = 14
     def on_paint(self, event):
         buffer = wx.EmptyBitmap(*self.Size)
