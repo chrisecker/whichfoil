@@ -91,9 +91,14 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         else:
             f = StringIO(bmp)
             im = wx.ImageFromStream(f)
+            if model.mirror:
+                im = im.Mirror()
             self.bmp = im.ConvertToBitmap()
         self.update_scroll()
         self.Refresh()
+
+    def mirror_changed(self, model, old):
+        self.bmp_changed(model, None)
 
     def alpha_changed(self, model, old):
         #print("alpha changed")
@@ -127,6 +132,12 @@ class Canvas(wx.ScrolledWindow, ViewBase):
     def p2_changed(self, model, old):
         self.Refresh()
 
+    def upper_changed(self, model, old):
+        self.Refresh()
+
+    def lower_changed(self, model, old):
+        self.Refresh()
+        
     def airfoil_changed(self, model, old):
         self.Refresh()
 
@@ -173,9 +184,10 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         m = self.get_image2window()
         gc.ConcatTransform(m)
 
-        p1 = wx.Point2D(*self.model.p1)
-        p2 = wx.Point2D(*self.model.p2)
-        zoom = self.model.zoom
+        model = self.model
+        p1 = wx.Point2D(*model.p1)
+        p2 = wx.Point2D(*model.p2)
+        zoom = model.zoom
 
         bmp = self.bmp
         if bmp:
@@ -188,6 +200,14 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         gc.SetPen(pen)
         gc.DrawEllipse(p1[0]-r, p1[1]-r, d, d)
         gc.DrawEllipse(p2[0]-r, p2[1]-r, d, d)
+
+        p12 = p2-p1
+        s = 0.5*wx.Point2D(p12[1], -p12[0]) # senkrechte
+        center = 0.5*(p1+p2) # Mitte zwischen p1 und p2
+        p3 = center-model.lower*s
+        gc.DrawEllipse(p3[0]-r, p3[1]-r, d, d)
+        p4 = center+model.upper*s
+        gc.DrawEllipse(p4[0]-r, p4[1]-r, d, d)
         
         p = self._transient
         if p:
@@ -196,7 +216,7 @@ class Canvas(wx.ScrolledWindow, ViewBase):
             gc.DrawEllipse(p[0]-r, p[1]-r, d, d)
 
         m = self.get_image2window()
-        airfoil = self.model.airfoil
+        airfoil = model.airfoil
         if airfoil is None:
             return
         
@@ -242,11 +262,20 @@ class Canvas(wx.ScrolledWindow, ViewBase):
     _dragstart = None # in image coordinates
     def mouse_event(self, event):
         image2window = self.get_image2window()
-        p1 = wx.Point2D(*self.model.p1)
-        p2 = wx.Point2D(*self.model.p2)
+        model = self.model
+        p1 = wx.Point2D(*model.p1)
+        p2 = wx.Point2D(*model.p2)
+        p12 = p2-p1
+        
         p1_ = image2window(p1)
         p2_ = image2window(p2)
 
+        p12 = p2-p1
+        s = 0.5*wx.Point2D(p12[1], -p12[0]) # senkrechte
+        center = 0.5*(p1+p2) # Mitte zwischen p1 und p2
+        p3 = center-model.lower*s
+        p4 = center+model.upper*s
+        
         inv = image2window.Inverted()
         p_ = wx.Point2D(*event.Position)
         p = inv(p_)
@@ -255,20 +284,22 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         radius = self._radius
 
         if event.Moving():
-            if (p1_-p_).Length()<=radius:
-                self._current = 1
-                self.SetCursor(wx.StockCursor(wx.CURSOR_CROSS))
-            elif (p2_-p_).Length()<=radius:
-                self._current = 2
-                self.SetCursor(wx.StockCursor(wx.CURSOR_CROSS))
-            else:
+            flag = False
+            for i, x in enumerate((p1, p2, p3, p4)):
+                x_ = image2window(x)
+                if (x_-p_).Length()<=radius:
+                    self._current = i+1
+                    self.SetCursor(wx.StockCursor(wx.CURSOR_CROSS))
+                    flag = True
+            if not flag:
                 self._current = None
                 self.SetCursor(wx.StockCursor(wx.CURSOR_DEFAULT))
+
 
         if event.Dragging() and self._current:
             if self._dragstart is None:                
                 self._dragstart = p
-            points = None, p1, p2
+            points = None, p1, p2, p3, p4
 
             # transient ist in Bildkoordinaten, Position und Dragstart
             # dagegen in Window-Koordinaten
@@ -282,6 +313,16 @@ class Canvas(wx.ScrolledWindow, ViewBase):
                     self.model.p1 = tuple(transient)
                 elif self._current == 2:
                     self.model.p2 = tuple(transient)
+                elif self._current == 3: # lower camber
+                    e = s.Normalized()
+                    lower = -e.Dot(transient-center)/s.Length()
+                    self.model.lower = max(lower, 0.01) # XXX we cannot handle values of zero for now!
+                    print ("lower=", lower)
+                elif self._current == 4: # upper camber
+                    e = s.Normalized()
+                    upper = e.Dot(transient-center)/s.Length()
+                    self.model.upper = max(upper, 0.01) # XXX we cannot handle values of zero for now!
+                    print ("upper=", upper)
             
             self.transient = None
             self._dragstart = None

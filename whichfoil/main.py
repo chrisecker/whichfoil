@@ -37,7 +37,7 @@ class FloatBinder(TextBinder):
     
     
 class MainWindow(wx.Frame):
-    file_entries = ['new', 'open', 'save', 'save_as', 'close']
+    file_entries = ['new', 'open', 'save', 'save_as', 'load_image', 'close']
     _filename = None
     def __init__(self, filename=None):
         wx.Frame.__init__(self, None, size=(800, 600))
@@ -71,6 +71,11 @@ class MainWindow(wx.Frame):
         sizer.Add(panel, 0, wx.EXPAND)
 
         sizer2 = wx.BoxSizer(wx.VERTICAL)
+
+        t = wx.Button(panel, label=u"Mirror")
+        self.Bind(wx.EVT_BUTTON, self.on_mirror)
+        sizer2.Add(t)
+
         l = wx.StaticText(panel, label=_("angle:"))
         sizer2.Add(l)
         t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
@@ -101,6 +106,9 @@ class MainWindow(wx.Frame):
         self.SetSizer(sizer)
         #sizer2.Fit(self)
         #self.Layout()
+
+    def on_mirror(self, event):
+        self.document.mirror = not self.document.mirror
 
     def new(self):
         "New Window"
@@ -162,6 +170,32 @@ class MainWindow(wx.Frame):
             if result != wx.ID_YES:
                 return            
         self.Close(True)
+
+    def load_image(self):
+        "Open image file"
+        wildcard = wildcard = "All files (*.*)|*.*"
+        dlg = wx.FileDialog(
+            self, message="Choose an image file",
+            wildcard=wildcard,
+            style=wx.FD_OPEN | wx.FD_CHANGE_DIR
+            )
+        if dlg.ShowModal() == wx.ID_OK:
+            model = self.document
+            for path in dlg.GetPaths():
+                s = open(path, "rb").read()
+                model.bmp = s
+            # reset canvas
+            w, h = self.canvas.bmp.Size
+            model.p1 = 0.1*w, 0.5*h
+            model.p2 = 0.9*w, 0.5*h
+            model.upper = 0.1 # upper camber 
+            model.lower = 0.1 # lower camber
+            model.mirror = False
+            model.scale = 1.0
+            model.xshift = 0
+            model.yshift = 0
+            model.alpha = 0.0
+        dlg.Destroy()        
 
 
 def test_00():

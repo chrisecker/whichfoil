@@ -191,6 +191,11 @@ def rounded(point):
     return wx.Point2D(round(x), round(y))
 wx.Point2D.Rounded = rounded
 
+def dot(point, other):
+    ax, ay = point
+    bx, by = other
+    return ax*bx+ay*by
+wx.Point2D.Dot = dot
 
 def dist_point_line(c, a, b):
     cx, cy = map(float, c)

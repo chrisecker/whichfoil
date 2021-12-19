@@ -29,28 +29,32 @@ class AnalysisModel(DocumentNode):
     #shift = attribute("shift")
     p1 = attribute("p1")
     p2 = attribute("p2")
+    upper = attribute("upper")
+    lower = attribute("lower")
     bmp = attribute("bmp") # imagefile bytes array (py3) or string
     airfoil = attribute("airfoil")
     xshift = attribute("xshift")
     yshift = attribute("yshift")
+    mirror = attribute("mirror")
 
     _alpha = 0.0
     _zoom = 1.0
     _xshift = 0.0
     _yshift = 0.0
+    _mirror = False
     _p1 = 0, 50
     _p2 = 100, 50
+    _lower = 0.2
+    _upper = 0.2
     _bmp = None
     _airfoil = None
+    
     
     def save_as(self, filename):
         state = self.__getstate__()
         bmp = self.bmp
         if bmp is not None:
-            print (repr(bmp)[:100])
             state['_bmp'] = bmp.decode('latin-1')
-            print("replaced bmp", type(state['_bmp']))
-        print("writing state=", state)
         s = json.dumps(state, indent=4)
         f = open(filename, 'w')
         f.write(magic)
