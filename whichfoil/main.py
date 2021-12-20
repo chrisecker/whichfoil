@@ -206,7 +206,7 @@ class MainWindow(wx.Frame):
 
     def new(self):
         "New Window"
-        f = MainWindow(path)
+        f = MainWindow(None)
         f.Show()
     
     def open(self):
