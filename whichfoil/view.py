@@ -83,9 +83,12 @@ class Canvas(wx.ScrolledWindow, ViewBase):
 
     def model_added(self, model):
         self.bmp_changed(model, None)
-        
-    def bmp_changed(self, model, old):
+
+    def update_bmp(self):
+        model = self.model
         bmp = model.bmp
+        transparency = model.transparency
+        brightness = model.brightness
         if bmp is None:
             self.bmp = None
         else:
@@ -93,10 +96,21 @@ class Canvas(wx.ScrolledWindow, ViewBase):
             im = wx.ImageFromStream(f)
             if model.mirror:
                 im = im.Mirror()
-            self.bmp = im.ConvertToBitmap()
+            print ("update bmp. brightness=", brightness, "transparancy=", transparency)
+            im = im.AdjustChannels(brightness, 1, 1, transparency)
+            self.bmp = wx.Bitmap(im) #im.ConvertToBitmap()
         self.update_scroll()
         self.Refresh()
+        
+    def bmp_changed(self, model, old):
+        self.update_bmp()
 
+    def brightness_changed(self, model, old):
+        self.update_bmp()
+
+    def transparency_changed(self, model, old):
+        self.update_bmp()
+        
     def mirror_changed(self, model, old):
         self.bmp_changed(model, None)
 
