@@ -194,10 +194,8 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         buffer = wx.EmptyBitmap(*self.Size)
         dc = wx.BufferedPaintDC(self, buffer)
         gc = wx.GraphicsContext.Create(dc)
-        gc.PushState()
         
         image2window = self.get_image2window()
-        gc.ConcatTransform(image2window)
 
         model = self.model
         p1 = wx.Point2D(*model.p1)
@@ -206,31 +204,37 @@ class Canvas(wx.ScrolledWindow, ViewBase):
 
         bmp = self.bmp
         if bmp:
+            gc.PushState()
+            gc.ConcatTransform(image2window)
             gc.DrawBitmap(bmp, -0, -0, bmp.Width, bmp.Height)
+            gc.PopState()
 
-        r = self._radius/zoom
+        r = self._radius
         d = 2*r
         linewidth = 2.0/zoom    
         pen = wx.Pen(colour="red", width=linewidth)
         gc.SetPen(pen)
-        gc.DrawEllipse(p1[0]-r, p1[1]-r, d, d)
-        gc.DrawEllipse(p2[0]-r, p2[1]-r, d, d)
+        t = image2window.TransformPoint
+        p1_ = t(p1)
+        p2_ = t(p2)        
+        gc.DrawEllipse(p1_[0]-r, p1_[1]-r, d, d)
+        gc.DrawEllipse(p2_[0]-r, p2_[1]-r, d, d)
 
-        p12 = p2-p1
+        p12_ = p2-p1
         s = wx.Point2D(p12[1], -p12[0]) # senkrechte
         center = 0.5*(p1+p2) # Mitte zwischen p1 und p2
-        p3 = center-model.lower*s
-        gc.DrawEllipse(p3[0]-r, p3[1]-r, d, d)
-        p4 = center+model.upper*s
-        gc.DrawEllipse(p4[0]-r, p4[1]-r, d, d)
+        p3_ = t(center-model.lower*s)
+        gc.DrawEllipse(p3_[0]-r, p3_[1]-r, d, d)
+        p4 = t(center+model.upper*s)
+        gc.DrawEllipse(p4_[0]-r, p4_[1]-r, d, d)
         
         p = self._transient
         if p:
+            p_ = t(p)
             pen = wx.Pen(colour="grey", width=linewidth)
             gc.SetPen(pen)
-            gc.DrawEllipse(p[0]-r, p[1]-r, d, d)
+            gc.DrawEllipse(p_[0]-r, p_[1]-r, d, d)
 
-        gc.PopState()
             
         if model.airfoil is None:
             return
