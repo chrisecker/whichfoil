@@ -188,7 +188,21 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         else:
             x = dx*event.GetPosition()
             self.model.xshift = -x-ox        
-                    
+
+    def _draw_edge_handle(self, gc, p):
+        r = 14
+        d = 2*r
+        gc.DrawEllipse(p[0]-r, p[1]-r, d, d)
+        e = 5
+        gc.DrawLines([p-(e, 0), p+(e, 0)])
+        gc.DrawLines([p-(0, e), p+(0, e)])
+            
+    def _draw_sub_handle(self, gc, p):
+        e = 5
+        gc.DrawLines([p+(-e, -e), p+(+e, +e)])
+        gc.DrawLines([p+(-e, +e), p+(+e, -e)])
+        
+            
     _radius = 14
     def on_paint(self, event):
         buffer = wx.EmptyBitmap(*self.Size)
@@ -209,32 +223,39 @@ class Canvas(wx.ScrolledWindow, ViewBase):
             gc.DrawBitmap(bmp, -0, -0, bmp.Width, bmp.Height)
             gc.PopState()
 
-        r = self._radius
-        d = 2*r
-        linewidth = 2.0/zoom    
-        pen = wx.Pen(colour="red", width=linewidth)
+        linewidth = 2.0
+        pen = wx.Pen(colour="red", width=linewidth)        
         gc.SetPen(pen)
-        t = image2window.TransformPoint
-        p1_ = t(p1)
-        p2_ = t(p2)        
-        gc.DrawEllipse(p1_[0]-r, p1_[1]-r, d, d)
-        gc.DrawEllipse(p2_[0]-r, p2_[1]-r, d, d)
+        color = wx.Colour(255, 0, 0, 50) # semi transparent red
+        brush = wx.Brush(color)
+        gc.SetBrush(brush)
 
-        p12_ = p2-p1
+        t = image2window
+        for p in p1, p2:
+            self._draw_edge_handle(gc, t(p))
+
+        p12 = p2-p1
         s = wx.Point2D(p12[1], -p12[0]) # senkrechte
         center = 0.5*(p1+p2) # Mitte zwischen p1 und p2
-        p3_ = t(center-model.lower*s)
-        gc.DrawEllipse(p3_[0]-r, p3_[1]-r, d, d)
-        p4 = t(center+model.upper*s)
-        gc.DrawEllipse(p4_[0]-r, p4_[1]-r, d, d)
+        p3 = center-model.lower*s
+        p4 = center+model.upper*s
+
+        for p in p3, p4:
+            self._draw_sub_handle(gc, t(p))
         
         p = self._transient
         if p:
             p_ = t(p)
             pen = wx.Pen(colour="grey", width=linewidth)
+            color = wx.Colour(128, 128, 128, 50)
+            brush = wx.Brush(color)
+            gc.SetBrush(brush)
+            
             gc.SetPen(pen)
-            gc.DrawEllipse(p_[0]-r, p_[1]-r, d, d)
-
+            if self._current in (1, 2):
+                self._draw_edge_handle(gc, t(p))
+            else:
+                self._draw_sub_handle(gc, t(p))                
             
         if model.airfoil is None:
             return
