@@ -36,7 +36,7 @@ class AnalysisModel(DocumentNode):
     xshift = attribute("xshift")
     yshift = attribute("yshift")
     mirror = attribute("mirror")
-    brightness = attribute("brightness")
+    hue = attribute("hue")
     transparency = attribute("transparency")
 
     _alpha = 0.0
@@ -44,7 +44,7 @@ class AnalysisModel(DocumentNode):
     _xshift = 0.0
     _yshift = 0.0
     _mirror = False
-    _brightness = 1.0
+    _hue = 0.5
     _transparency = 1.0
     _p1 = 0, 50
     _p2 = 100, 50

@@ -87,8 +87,7 @@ class Canvas(wx.ScrolledWindow, ViewBase):
     def update_bmp(self):
         model = self.model
         bmp = model.bmp
-        transparency = model.transparency
-        brightness = model.brightness
+        hue = model.hue
         if bmp is None:
             self.bmp = None
         else:
@@ -96,16 +95,38 @@ class Canvas(wx.ScrolledWindow, ViewBase):
             im = wx.ImageFromStream(f)
             if model.mirror:
                 im = im.Mirror()
-            print ("update bmp. brightness=", brightness, "transparancy=", transparency)
-            im = im.AdjustChannels(brightness, 1, 1, transparency)
-            self.bmp = wx.Bitmap(im) #im.ConvertToBitmap()
+
+            if hue != 0.5:
+                assert hue>=0
+                assert hue<=1
+                w, h = im.GetSize()
+                bmp2 = wx.Bitmap(w, h)
+                dc = wx.MemoryDC()
+                dc.SelectObject(bmp2)
+                dc.DrawBitmap(wx.Bitmap(im), 0, 0)
+                if model.hue>0.5:
+                    alpha = 500*hue-255
+                    color = wx.Colour(255, 255, 255, alpha) # white
+                else:
+                    alpha = 255-500*hue
+                    color = wx.Colour(0, 0, 0, alpha) # black
+                brush = wx.Brush(color)
+                dc.SetBrush(brush)
+                dc.SetPen(wx.TRANSPARENT_PEN)
+                dc.DrawRectangle(0, 0, w, h)
+                dc.SelectObject(wx.NullBitmap)
+                self.bmp = bmp2
+            else:
+                #print ("update bmp. brightness=", brightness, "transparancy=", transparency)
+                #im = im.AdjustChannels(brightness, 1, 1, transparency)
+                self.bmp = wx.Bitmap(im) #im.ConvertToBitmap()
         self.update_scroll()
         self.Refresh()
         
     def bmp_changed(self, model, old):
         self.update_bmp()
 
-    def brightness_changed(self, model, old):
+    def hue_changed(self, model, old):
         self.update_bmp()
 
     def transparency_changed(self, model, old):

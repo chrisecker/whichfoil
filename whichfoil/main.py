@@ -157,6 +157,12 @@ class MainWindow(wx.Frame):
         t.Bind(wx.EVT_BUTTON, self.on_mirror)
         sizer2.Add(t)
 
+        l = wx.StaticText(panel, label=_("hue:"))
+        sizer2.Add(l)
+        t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
+        sizer2.Add(t)
+        FloatBinder(document, 'hue', t)
+        
         l = wx.StaticText(panel, label=_("angle:"))
         sizer2.Add(l)
         t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
@@ -314,6 +320,7 @@ def test_00():
     doc.bmp = s
     doc.upper = 0.09859762675296653
     doc.lower = 0.03926645091693633
+    doc.hue = 0.3
     #canvas.shift = 100, 0
 
     
