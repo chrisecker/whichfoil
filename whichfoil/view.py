@@ -194,9 +194,10 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         buffer = wx.EmptyBitmap(*self.Size)
         dc = wx.BufferedPaintDC(self, buffer)
         gc = wx.GraphicsContext.Create(dc)
+        gc.PushState()
         
-        m = self.get_image2window()
-        gc.ConcatTransform(m)
+        image2window = self.get_image2window()
+        gc.ConcatTransform(image2window)
 
         model = self.model
         p1 = wx.Point2D(*model.p1)
@@ -229,12 +230,13 @@ class Canvas(wx.ScrolledWindow, ViewBase):
             gc.SetPen(pen)
             gc.DrawEllipse(p[0]-r, p[1]-r, d, d)
 
-        m = self.get_image2window()
         airfoil = model.airfoil
         if airfoil is None:
             return
-        
-        pen = wx.Pen(colour="green", width=linewidth)
+
+        gc.PopState()
+
+        pen = wx.Pen(colour="green", width=2)
         gc.SetPen(pen)
 
         f = (p2-p1).Length()
@@ -242,14 +244,13 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         m = create_matrix().Translated(p1).Rotated(alpha).Scaled(f, -f) # die Reihenfolge finde ich komisch!
         # ... entspricht aber wx. finde ich auch komisch.
         self.profile2image = m
+        profile2win = image2window(m)
         
-        # wx skaliert leider auch die Strichbreite. Wir pushen profile2image daher nicht, 
-        # sondern benutzen es um die Koordinaten manuell umzurechnen. 
         xv, yv = airfoil
         path = gc.CreatePath()
         first = True
         for p in zip(xv, yv):
-            p_ = self.profile2image(wx.Point2D(*p))
+            p_ = profile2win(wx.Point2D(*p))
 
             if first:
                 first = False
@@ -257,8 +258,6 @@ class Canvas(wx.ScrolledWindow, ViewBase):
             else:
                 path.AddLineToPoint(*p_)
         gc.StrokePath(path)        
-        gc.SetBrush(wx.TRANSPARENT_BRUSH)
-        gc.DrawRectangle(0, 0, 1, 1)
         
     def set_transient(self, p):
         if p != self._transient:
