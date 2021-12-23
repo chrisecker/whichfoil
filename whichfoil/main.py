@@ -1,6 +1,7 @@
 # -*- coding: latin-1 -*-
 
 import wx
+import os
 from math import pi
 
 from .menu import mk_menu
@@ -72,8 +73,9 @@ class AirfoilBrowser(wx.Frame):
         import os
         for name in os.listdir(self.path):
             p = os.path.join(self.path, name)
+            foilname = os.path.splitext(name)[0]
             xl, yl = load_airfoil(p)
-            foils[name] = xl, yl
+            foils[foilname] = xl, yl
         self.foils = foils
 
     def apply_filter(self, upper, lower, delta=0.005):
@@ -108,8 +110,8 @@ class AirfoilBrowser(wx.Frame):
         i = event.GetSelection()
         name = self.lb.Items[i]
         airfoil = self.foils[name]
-        self.main.document.airfoil = airfoil
-        print("Setting airfoil", name)
+        self.main.document.airfoil = name, airfoil
+        
     
 class MainWindow(wx.Frame):
     file_entries = ['new', 'open', 'save', 'save_as', 'load_image', 'close']
@@ -199,7 +201,9 @@ class MainWindow(wx.Frame):
         #self.Layout()
 
     def on_browser(self, event):
-        browser = AirfoilBrowser(self)
+        self.browser = AirfoilBrowser(self)
+        print("stored browser in", self)
+        # store it for debugging and scripting
     
     def on_mirror(self, event):
         self.document.mirror = not self.document.mirror
@@ -304,7 +308,7 @@ def test_00():
     #canvas.zoom = 2
     #canvas.p1 = 10, 100
     #canvas.p2 = 500, 100
-    main.document.airfoil = load_airfoil("foils/ah79k135-il.dat") # ag03.dat
+    main.document.airfoil = "ag03", load_airfoil("foils/ah79k135-il.dat") # ag03.dat
     s = open("test/ah79k135.gif", "rb").read()
     doc = main.document
     doc.bmp = s

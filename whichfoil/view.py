@@ -230,11 +230,12 @@ class Canvas(wx.ScrolledWindow, ViewBase):
             gc.SetPen(pen)
             gc.DrawEllipse(p[0]-r, p[1]-r, d, d)
 
-        airfoil = model.airfoil
-        if airfoil is None:
-            return
-
         gc.PopState()
+            
+        if model.airfoil is None:
+            return
+        
+        name, (xv, yv) = model.airfoil
 
         pen = wx.Pen(colour="green", width=2)
         gc.SetPen(pen)
@@ -246,7 +247,6 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         self.profile2image = m
         profile2win = image2window(m)
         
-        xv, yv = airfoil
         path = gc.CreatePath()
         first = True
         for p in zip(xv, yv):

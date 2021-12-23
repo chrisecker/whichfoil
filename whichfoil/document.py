@@ -69,6 +69,15 @@ class AnalysisModel(DocumentNode):
         return d
 
     def __setstate__(self, state):
+        airfoil = state.get('_airfoil')
+        if airfoil:
+            try:
+                name, (xv, yv) = airfoil
+            except:
+                # XXX Hack to allow reading old files
+                xv, yv = airfoil 
+                name = "<unnamed>"
+            state['_airfoil'] = name, (xv, yv)
         self.__dict__.update(state)
 
     
