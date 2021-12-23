@@ -114,7 +114,8 @@ class AirfoilBrowser(wx.Frame):
         
     
 class MainWindow(wx.Frame):
-    file_entries = ['new', 'open', 'save', 'save_as', 'load_image', 'close']
+    file_entries = ['new', 'open', 'save', 'save_as', 'close']
+    image_entries = ['load_image', 'flip_image']
     _filename = None
     def __init__(self, filename=None):
         wx.Frame.__init__(self, None, size=(800, 600))
@@ -124,6 +125,8 @@ class MainWindow(wx.Frame):
         menubar = wx.MenuBar()
         menubar.Append(
             mk_menu(self, self.file_entries, updaters, accel), '&File')
+        menubar.Append(
+            mk_menu(self, self.image_entries, updaters, accel), '&Image')
         self.SetMenuBar(menubar)
         self.updaters = updaters
         #self.SetAcceleratorTable(wx.AcceleratorTable(accel))
@@ -153,10 +156,6 @@ class MainWindow(wx.Frame):
         t.Bind(wx.EVT_BUTTON, self.on_browser)
         sizer2.Add(t)
         
-        t = wx.Button(panel, label=u"Mirror")
-        t.Bind(wx.EVT_BUTTON, self.on_mirror)
-        sizer2.Add(t)
-
         l = wx.StaticText(panel, label=_("hue:"))
         sizer2.Add(l)
         t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
@@ -205,15 +204,29 @@ class MainWindow(wx.Frame):
         self.SetSizer(sizer)
         #sizer2.Fit(self)
         #self.Layout()
+        self.Bind(wx.EVT_IDLE, self.update)
 
+
+    def update(self, event):
+        # update filename in window title
+        if self._filename:
+            path, name = os.path.split(self._filename)
+            title = name
+        else:
+            title = '<unnamed>'
+        #if self.changed():
+        #    title = title+' *'
+        self.SetTitle(title)
+
+        # update menus
+        for updater in self.updaters:
+            updater()
+        
     def on_browser(self, event):
         self.browser = AirfoilBrowser(self)
         print("stored browser in", self)
         # store it for debugging and scripting
     
-    def on_mirror(self, event):
-        self.document.mirror = not self.document.mirror
-
     def new(self):
         "New Window"
         f = MainWindow(None)
@@ -300,7 +313,13 @@ class MainWindow(wx.Frame):
             model.xshift = 0
             model.yshift = 0
             model.alpha = 0.0
-        dlg.Destroy()        
+        dlg.Destroy()
+
+    def flip_image(self):
+        "Flip image horizontally"
+        self.document.mirror = not self.document.mirror
+
+
 
 
 def test_00():
