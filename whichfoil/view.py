@@ -416,6 +416,7 @@ def load_airfoil(p, warnings=None):
 
 def demo_00():
     from .document import AnalysisModel
+    from .airfoil import load_airfoil
     doc = AnalysisModel()
     app = wx.App(False)
     f = wx.Frame(None)

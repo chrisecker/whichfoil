@@ -6,8 +6,8 @@ from math import pi
 
 from .menu import mk_menu
 from .document import AnalysisModel, load_model
-from .view import Canvas, load_airfoil
-
+from .view import Canvas
+from .airfoil import load_airfoil
 from .bindwx import Binder, TextBinder, InvalidValue
 
 def _(x): return x
