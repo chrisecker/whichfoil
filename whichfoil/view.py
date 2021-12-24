@@ -16,6 +16,18 @@ from .geometry import create_matrix
 from .viewbase import ViewBase
 
 
+
+if wx.VERSION[0] <= 3:
+    create_bitmap = wx.EmptyBitmap
+    def image2bitmap(image):
+        return image.ConvertToBitmap()
+        
+else:
+    create_bitmap = wx.Bitmap
+    image2bitmap = wx.Bitmap
+    
+
+                    
 def overridable_property(name, doc = None):
     setter_name = 'set_' + name
     return property(
@@ -90,7 +102,7 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         hue = model.hue
         if bmp is None:
             self.bmp = None
-        else:
+        else:            
             f = StringIO(bmp)
             im = wx.ImageFromStream(f)
             if model.mirror:
@@ -100,10 +112,11 @@ class Canvas(wx.ScrolledWindow, ViewBase):
                 assert hue>=0
                 assert hue<=1
                 w, h = im.GetSize()
-                bmp2 = wx.Bitmap(w, h)
+                bmp2 = create_bitmap(w, h)
                 dc = wx.MemoryDC()
                 dc.SelectObject(bmp2)
-                dc.DrawBitmap(wx.Bitmap(im), 0, 0)
+                
+                dc.DrawBitmap(image2bitmap(im), 0, 0)
                 if model.hue>0.5:
                     alpha = 500*hue-255
                     color = wx.Colour(255, 255, 255, alpha) # white
@@ -119,7 +132,8 @@ class Canvas(wx.ScrolledWindow, ViewBase):
             else:
                 #print ("update bmp. brightness=", brightness, "transparancy=", transparency)
                 #im = im.AdjustChannels(brightness, 1, 1, transparency)
-                self.bmp = wx.Bitmap(im) #im.ConvertToBitmap()
+                self.bmp = image2bitmap(im)
+                
         self.update_scroll()
         self.Refresh()
         
