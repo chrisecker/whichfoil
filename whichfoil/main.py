@@ -43,7 +43,8 @@ class AirfoilBrowser(wx.Frame):
     def __init__(self, main):
         self.main = main
         self.read_foils()
-        wx.Frame.__init__(self, None)
+        style=wx.FRAME_FLOAT_ON_PARENT | wx.DEFAULT_FRAME_STYLE#| wx.FRAME_TOOL_WINDOW
+        wx.Frame.__init__(self, main, style=style, title="Air foil browser")
         s = wx.BoxSizer(wx.VERTICAL)
         lb = wx.ListBox(self)
         lb.Bind(wx.EVT_LISTBOX_DCLICK, self.on_load)
@@ -342,8 +343,10 @@ def test_00():
     doc.hue = 0.3
     #canvas.shift = 100, 0
 
-    
-
-    from . import testing
-    testing.pyshell(locals())
+    if 0:
+        from .shelltool import ShellTool
+        ShellTool(main).Show()
+    else:
+        from . import testing
+        testing.pyshell(locals())
     app.MainLoop()
