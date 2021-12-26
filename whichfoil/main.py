@@ -35,9 +35,34 @@ class FloatBinder(TextBinder):
 
     def tostr(self, value):
         return str(value)
-        #return u"%.1f" % value
-    
 
+
+class VectorBinder(Binder):
+    def __init__(self, model, attrname, widget1, widget2):
+        self.widget1 = widget1
+        self.widget2 = widget2
+        Binder.__init__(self, model, attrname, widget1)
+        for widget in (widget1, widget2):
+            widget.Bind(wx.EVT_TEXT_ENTER, self.check_widget)
+            widget.Bind(wx.EVT_KILL_FOCUS, self.check_widget)
+
+    def get_widget_state(self):
+        return self.widget1.Value, self.widget2.Value
+
+    def set_widget_value(self, value):
+        self.widget1.Value = u"%.1f" % value[0]
+        self.widget2.Value = u"%.1f" % value[1]
+
+    def get_widget_value(self):
+        s1, s2 = self.get_widget_state()
+        try:
+            x = float(s1)
+            y = float(s2)
+        except ValueError:
+            raise InvalidValue((s1, s2))
+        return x, y
+
+    
 class AirfoilBrowser(wx.Frame):
     path = "/home/ecker/foils" # XXX
     def __init__(self, main):
@@ -118,7 +143,7 @@ class AirfoilBrowser(wx.Frame):
 class MainWindow(wx.Frame):
     file_entries = ['new', 'open', 'save', 'save_as', 'close']
     image_entries = ['load_image', 'flip_image']
-    view_entries = ['zoomin', 'zoomout']
+    view_entries = ['zoomin', 'zoomout', 'moveleft', 'moveright', 'moveup', 'movedown']
     debug_entries = ['open_notebook', 'open_shell']
 
     _filename = None
@@ -183,17 +208,15 @@ class MainWindow(wx.Frame):
         sizer2.Add(t)
         FloatBinder(document, 'zoom', t)
 
-        l = wx.StaticText(panel, label=_("xshift:"))
+        l = wx.StaticText(panel, label=_("x-focus:"))
         sizer2.Add(l)
-        t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
-        sizer2.Add(t)
-        FloatBinder(document, 'xshift', t)
-
-        l = wx.StaticText(panel, label=_("yshift:"))
+        tx = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
+        sizer2.Add(tx)
+        l = wx.StaticText(panel, label=_("y-focus:"))
         sizer2.Add(l)
-        t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
-        sizer2.Add(t)
-        FloatBinder(document, 'yshift', t)
+        ty = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
+        sizer2.Add(ty)        
+        VectorBinder(document, 'focus', tx, ty)
 
         l = wx.StaticText(panel, label=_("upper camber:"))
         sizer2.Add(l)
@@ -214,6 +237,7 @@ class MainWindow(wx.Frame):
         #sizer2.Fit(self)
         #self.Layout()
         self.Bind(wx.EVT_IDLE, self.update)
+        self.SetFocus()
 
 
     def update(self, event):
@@ -233,7 +257,6 @@ class MainWindow(wx.Frame):
         
     def on_browser(self, event):
         self.browser = AirfoilBrowser(self)
-        print("stored browser in", self)
         # store it for debugging and scripting
     
     def new(self):
@@ -242,7 +265,7 @@ class MainWindow(wx.Frame):
         f.Show()
     
     def open(self):
-        "Open WFD file"
+        "Open WFD file\tCtrl+o"
         wildcard = "WFD files (*.wfd)|*.wfd|" \
                    "All files (*.*)|*.*"
 
@@ -352,8 +375,28 @@ class MainWindow(wx.Frame):
     def zoomout(self):
         "Zoom out\tCtrl--"
         self.document.zoom /= 1.5
-        
 
+    def moveview(self, dx, dy):
+        zoom = self.document.zoom
+        x, y = self.document.focus
+        self.document.focus = x+dx*10.0/zoom, y+dy*10.0/zoom
+
+    def moveleft(self):
+        "Move left\tCtrl-left"
+        self.moveview(-1, 0)
+        
+    def moveright(self):
+        "Move right\tCtrl-right"
+        self.moveview(1, 0)
+
+    def moveup(self):
+        "Move up\tCtrl-up"
+        self.moveview(0, -1)
+        
+    def movedown(self):
+        "Move down\tCtrl-down"
+        self.moveview(0, 1)
+        
 
 
 
@@ -380,4 +423,8 @@ def test_00():
 
     #canvas.shift = 100, 0
 
+    try:
+        main.open_notebook(locals())
+    except ModuleNotFoundError:
+        pass
     app.MainLoop()

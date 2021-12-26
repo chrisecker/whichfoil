@@ -69,18 +69,24 @@ class Canvas(wx.ScrolledWindow, ViewBase):
             x, y = m.TransformPoint(*p)
             xl.append(x)
             yl.append(y)
-        origin = self.origin = min(xl), min(yl)
-        vw = max(xl)-origin[0]
-        vh = max(yl)-origin[1]
+        vw = max(xl)-min(xl)
+        vh = max(yl)-min(yl)
+        virtual = wx.Point2D(vw, vh)
         self.SetVirtualSize((vw, vh))
-        scrollrate = 1, 1
-        self.SetScrollRate(*scrollrate)
+        win = wx.Point2D(*self.Size)
+        c_win = 0.5*win # window center 
+        shift = m(0.5*wx.Point2D(w, h))-c_win
+        scroll = 0.5*(virtual-win)-shift
+        self.SetScrollPos(wx.HORIZONTAL, scroll[0])
+        self.SetScrollPos(wx.VERTICAL, scroll[1])
+        # calculate scrollbar positions
+        #shifty = scroll-0.5*(virtual[1]-window[1])
+        # set scrollbar positions
     
     def __init__(self, parent):
         ViewBase.__init__(self)
         wx.ScrolledWindow.__init__(self, parent)
         # not implemented. idiots. self.AlwaysShowScrollbars(True, True)
-        
         self.SetBackgroundColour('white')
         self.Bind(wx.EVT_PAINT, self.on_paint)
         self.Bind(wx.EVT_ERASE_BACKGROUND, lambda e: None)
@@ -92,7 +98,9 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         self.Bind(wx.EVT_SCROLLWIN, self.on_scroll)
         
         self.SetFocus()
-        self.update_scroll()
+        self.SetScrollRate(1, 1)
+        self.ShowScrollbars(True, True)
+        wx.CallAfter(self.update_scroll)
 
     def model_added(self, model):
         self.bmp_changed(model, None)
@@ -151,25 +159,7 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         self.bmp_changed(model, None)
 
     def alpha_changed(self, model, old):
-        #print("alpha changed")
-
         self.update_scroll()
-        
-        self.Refresh()
-        # update shift etc.
-        if self.bmp is not None:
-            return # XXX
-            alpha = self.model.alpha
-            zoom = self.model.zoom
-            trafo =  create_matrix().Rotate(alpha).Scale(zoom, zoom)
-            w, h = self.bmp.Size
-            l = (0, 0), (w, 0), (w, h), (0, h)
-            l_ = [trafo.TransformPointFloat(p) for p in l]
-            minx = min([p[0] for p in l_])
-            miny = min([p[1] for p in l_])
-            maxx = max([p[0] for p in l_])
-            maxy = max([p[1] for p in l_])
-            #self.shift = minx, miny
         self.Refresh()
 
     def zoom_changed(self, model, old):
@@ -177,7 +167,6 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         self.Refresh()
 
     def focus_changed(self, model, old):
-        # XXX
         self.update_scroll()
         self.Refresh()
             
@@ -260,37 +249,33 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         m = create_matrix().Rotated(alpha) \
             .Translated((-0.5*w, -0.5*h)).Scaled(zoom, zoom)
 
-        center = wx.Point(0.5*w, 0.5*h)
-        center_ = m(wx.Point2D(*center))
+        ic = wx.Point2D(0.5*w, 0.5*h) # image center
+        ic_ = m(wx.Point2D(*ic))
 
-        # jetzt so verschieben, dass center_ im Mittelpunkt des Fensters (wc) liegt
-        wc = 0.5*wx.Point2D(*self.Size)
-        r = create_matrix().Translated(wc-center_)(m)
+        # jetzt so verschieben, dass center_ im Mittelpunkt (vc_) der virtuellen Fläche liegt. 
+        vc_ = 0.5*wx.Point2D(*self.VirtualSize)
+        r = create_matrix().Translated(vc_-ic_)(m)
+        #assert r(ic) == vc_ # works only when zoom ist not too small
         return r
     
-
-    origin = (0, 0)
     def on_scroll(self, event):
-        #return
         m = self.get_image2virtual()
         inv = m.Inverted()
+        virtual = wx.Point2D(*self.VirtualSize)
         focus = self.model.focus
-        x, y = m(wx.Point2D(*focus))
-        dx, dy = self.GetScrollPixelsPerUnit()
-        virtual = self.VirtualSize
+        focus_ = m(wx.Point2D(*focus))
+        x, y = focus_-0.5*virtual
+        xinc, yinc = self.GetScrollPixelsPerUnit()
         window = self.Size
         if event.GetOrientation() == wx.VERTICAL:
-            s = dy*event.GetPosition()
-            print("y-scroll=", s)
-            y = (virtual[1]-window[1])*0.5-s
+            s = yinc*event.GetPosition()
+            y = s-0.5*(virtual[1]-window[1])
         else:
-            s = dx*event.GetPosition()
-            print("x-scroll=", s)
+            s = xinc*event.GetPosition()
             x = s-0.5*(virtual[0]-window[0])
-            print(virtual[0], window[0])
-        print("focussing on screen to ", (x, y))
-        self.model.focus = inv(wx.Point2D(x, y))
-        print("focussing on image to ", self.model.focus)
+        shift = wx.Point2D(x, y)
+        focus_ = 0.5*wx.Point2D(*virtual)+shift
+        self.model.focus = inv(focus_)
         event.Skip()
 
     def _draw_edge_handle(self, gc, p):
@@ -459,12 +444,11 @@ class Canvas(wx.ScrolledWindow, ViewBase):
                     e = s.Normalized()
                     lower = -e.Dot(transient-center)/s.Length()
                     self.model.lower = max(lower, 0.01) # XXX we cannot handle values of zero for now!
-                    print ("lower=", lower)
+                    
                 elif self._current == 4: # upper camber
                     e = s.Normalized()
                     upper = e.Dot(transient-center)/s.Length()
                     self.model.upper = max(upper, 0.01) # XXX we cannot handle values of zero for now!
-                    print ("upper=", upper)
             
             self.transient = None
             self._dragstart = None
