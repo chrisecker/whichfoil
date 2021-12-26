@@ -106,6 +106,7 @@ class AirfoilBrowser(wx.Frame):
         if delta<=0:
             delta = 0.0
         t.Value = str(delta)
+        self.on_filter(None)
                 
     def on_load(self, event):
         i = event.GetSelection()
@@ -117,6 +118,9 @@ class AirfoilBrowser(wx.Frame):
 class MainWindow(wx.Frame):
     file_entries = ['new', 'open', 'save', 'save_as', 'close']
     image_entries = ['load_image', 'flip_image']
+    view_entries = ['zoomin', 'zoomout']
+    debug_entries = ['open_notebook', 'open_shell']
+
     _filename = None
     def __init__(self, filename=None):
         wx.Frame.__init__(self, None, size=(800, 600))
@@ -128,6 +132,10 @@ class MainWindow(wx.Frame):
             mk_menu(self, self.file_entries, updaters, accel), '&File')
         menubar.Append(
             mk_menu(self, self.image_entries, updaters, accel), '&Image')
+        menubar.Append(
+            mk_menu(self, self.view_entries, updaters, accel), '&View')
+        menubar.Append(
+            mk_menu(self, self.debug_entries, updaters, accel), '&Debug')
         self.SetMenuBar(menubar)
         self.updaters = updaters
         #self.SetAcceleratorTable(wx.AcceleratorTable(accel))
@@ -314,11 +322,37 @@ class MainWindow(wx.Frame):
             model.xshift = 0
             model.yshift = 0
             model.alpha = 0.0
+            model.focus = 0.5*w, 0.5*h
         dlg.Destroy()
 
     def flip_image(self):
         "Flip image horizontally"
         self.document.mirror = not self.document.mirror
+
+    def open_notebook(self, namespace=None):
+        "Open notebook"
+        from .shelltool import ShellTool
+        if namespace is None:
+            namespace = dict(main=self)
+        tool = ShellTool(self)
+        tool.Show()
+        tool.namespace.update(namespace)
+        
+    def open_shell(self, namespace=None):
+        "Open shell"
+        from .testing import pyshell
+        if namespace is None:
+            namespace = dict(main=self)
+        pyshell(namespace)
+
+    def zoomin(self):
+        "Zoom in\tCtrl-+"
+        self.document.zoom *= 1.5
+
+    def zoomout(self):
+        "Zoom out\tCtrl--"
+        self.document.zoom /= 1.5
+        
 
 
 
@@ -341,12 +375,9 @@ def test_00():
     doc.upper = 0.09859762675296653
     doc.lower = 0.03926645091693633
     doc.hue = 0.3
+    w, h = main.canvas.bmp.Size
+    doc.focus = 0.5*w, 0.5*h
+
     #canvas.shift = 100, 0
 
-    if 0:
-        from .shelltool import ShellTool
-        ShellTool(main).Show()
-    else:
-        from . import testing
-        testing.pyshell(locals())
     app.MainLoop()

@@ -15,6 +15,7 @@ class ShellTool(wx.Frame):
         ns = pyclient.namespace
         ns['document'] = main.document
         ns['main'] = main
+        self.namespace = ns
         box = wx.BoxSizer(wx.VERTICAL)
         box.Add(view, 1, wx.ALL|wx.GROW, 1)
         win.SetSizer(box)
