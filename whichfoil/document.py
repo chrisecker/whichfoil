@@ -33,6 +33,7 @@ class AnalysisModel(DocumentNode):
     lower = attribute("lower")
     bmp = attribute("bmp") # imagefile bytes array (py3) or string
     airfoil = attribute("airfoil")
+    focus = attribute("focus")
     xshift = attribute("xshift")
     yshift = attribute("yshift")
     mirror = attribute("mirror")
@@ -41,6 +42,7 @@ class AnalysisModel(DocumentNode):
 
     _alpha = 0.0
     _zoom = 1.0
+    _focus = 50, 50
     _xshift = 0.0
     _yshift = 0.0
     _mirror = False

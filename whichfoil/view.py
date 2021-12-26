@@ -53,6 +53,7 @@ class Canvas(wx.ScrolledWindow, ViewBase):
     _shift = 0.0, 0.0
     _transient = None
     bmp = None
+    _current = None
     def update_scroll(self):
         if self.model is None:
             return
@@ -72,7 +73,7 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         vw = max(xl)-origin[0]
         vh = max(yl)-origin[1]
         self.SetVirtualSize((vw, vh))
-        scrollrate = 10, 10
+        scrollrate = 1, 1
         self.SetScrollRate(*scrollrate)
     
     def __init__(self, parent):
@@ -174,7 +175,12 @@ class Canvas(wx.ScrolledWindow, ViewBase):
     def zoom_changed(self, model, old):
         self.update_scroll()
         self.Refresh()
-    
+
+    def focus_changed(self, model, old):
+        # XXX
+        self.update_scroll()
+        self.Refresh()
+            
     def p1_changed(self, model, old):
         self.Refresh()
     
@@ -196,6 +202,14 @@ class Canvas(wx.ScrolledWindow, ViewBase):
     def yshift_changed(self, model, old):
         self.Refresh()
 
+    def get_shift(self):
+        virtual = wx.Point2D(*self.VirtualSize)
+        window = wx.Point2D(*self.Size)
+        scrollx = self.GetScrollPos(wx.HORIZONTAL)
+        scrolly = self.GetScrollPos(wx.VERTICAL)
+        scroll = wx.Point2D(scrollx, scrolly)
+        return 0.5*(virtual-window)-scroll
+
     def get_image2window(self):
         bmp = self.bmp
         if bmp is None:
@@ -206,23 +220,78 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         alpha = self.model.alpha
         # Alpha >0 bedeutet eine Drehung des Bildes im Uhrzeigersinn!
         zoom = self.model.zoom
-        xshift = self.model.xshift
-        yshift = self.model.yshift
+        #xshift = self.model.xshift
+        #yshift = self.model.yshift
 
-        m = create_matrix().Translated((xshift, yshift)).Translated((0.5*w, 0.5*h)).Rotated(alpha) \
+        #shift = self.get_shift()
+
+        scrollx = self.GetScrollPos(wx.HORIZONTAL)
+        scrolly = self.GetScrollPos(wx.VERTICAL)
+        scroll = wx.Point2D(scrollx, scrolly)
+
+        # Translated(-scroll).Translated((0.5*w, 0.5*h)).
+        m = create_matrix().Rotated(alpha) \
             .Translated((-0.5*w, -0.5*h)).Scaled(zoom, zoom)
-        return m
+
+        # achtung: die Anwendung der Matritzen erfolgt von rechts nach
+        # links. Ein Punkt p wird als 1. Skaliert, 2. verscoben,
+        # 3. Rotiert, ...
+
+        #focus = 0.5*wx.Point2D(w, h)
+        focus = self.model.focus
+        
+        focus_ = m(wx.Point2D(*focus))
+
+        # jetzt so verschieben, dass focus_ im Mittelpunkt des Fensters (wc) liegt
+        wc = 0.5*wx.Point2D(*self.Size)
+        r = create_matrix().Translated(wc-focus_)(m)
+        # assert r(focus) == wc # works only when zoom ist not too small
+        return r
+
+    def get_image2virtual(self):
+        bmp = self.bmp
+        if bmp is None:
+            w = h = 100
+        else:
+            w, h = bmp.Size
+        alpha = self.model.alpha
+        zoom = self.model.zoom
+
+        m = create_matrix().Rotated(alpha) \
+            .Translated((-0.5*w, -0.5*h)).Scaled(zoom, zoom)
+
+        center = wx.Point(0.5*w, 0.5*h)
+        center_ = m(wx.Point2D(*center))
+
+        # jetzt so verschieben, dass center_ im Mittelpunkt des Fensters (wc) liegt
+        wc = 0.5*wx.Point2D(*self.Size)
+        r = create_matrix().Translated(wc-center_)(m)
+        return r
+    
 
     origin = (0, 0)
     def on_scroll(self, event):
+        #return
+        m = self.get_image2virtual()
+        inv = m.Inverted()
+        focus = self.model.focus
+        x, y = m(wx.Point2D(*focus))
         dx, dy = self.GetScrollPixelsPerUnit()
-        ox, oy = self.origin
+        virtual = self.VirtualSize
+        window = self.Size
         if event.GetOrientation() == wx.VERTICAL:
-            y = dy*event.GetPosition()
-            self.model.yshift = -y-oy
+            s = dy*event.GetPosition()
+            print("y-scroll=", s)
+            y = (virtual[1]-window[1])*0.5-s
         else:
-            x = dx*event.GetPosition()
-            self.model.xshift = -x-ox        
+            s = dx*event.GetPosition()
+            print("x-scroll=", s)
+            x = s-0.5*(virtual[0]-window[0])
+            print(virtual[0], window[0])
+        print("focussing on screen to ", (x, y))
+        self.model.focus = inv(wx.Point2D(x, y))
+        print("focussing on image to ", self.model.focus)
+        event.Skip()
 
     def _draw_edge_handle(self, gc, p):
         r = 14
