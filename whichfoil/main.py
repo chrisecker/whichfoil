@@ -143,7 +143,8 @@ class AirfoilBrowser(wx.Frame):
 class MainWindow(wx.Frame):
     file_entries = ['new', 'open', 'save', 'save_as', 'close']
     image_entries = ['load_image', 'flip_image']
-    view_entries = ['zoomin', 'zoomout', 'moveleft', 'moveright', 'moveup', 'movedown']
+    view_entries = ['zoomin', 'zoomout', 'moveleft', 'moveright', 'moveup', 'movedown',
+                    'rotateleft', 'rotateright']
     debug_entries = ['open_notebook', 'open_shell']
 
     _filename = None
@@ -177,6 +178,7 @@ class MainWindow(wx.Frame):
 
         self.canvas = canvas = Canvas(self)
         canvas.set_model(document)
+        self.canvas.Bind(wx.EVT_CHAR, self.on_char)
         
         sizer.Add(canvas, 1, wx.EXPAND)
 
@@ -379,7 +381,8 @@ class MainWindow(wx.Frame):
     def moveview(self, dx, dy):
         zoom = self.document.zoom
         x, y = self.document.focus
-        self.document.focus = x+dx*10.0/zoom, y+dy*10.0/zoom
+        step = 20.0/zoom
+        self.document.focus = x+dx*step, y+dy*step
 
     def moveleft(self):
         "Move left\tCtrl-left"
@@ -396,7 +399,44 @@ class MainWindow(wx.Frame):
     def movedown(self):
         "Move down\tCtrl-down"
         self.moveview(0, 1)
+
+    def rotateright(self):
+        "Rotate right\tCtrl-PgDn"
+        deg = pi/180.0
+        self.document.alpha += 5*deg
+
+    def rotateleft(self):
+        "Rotate left\tCtrl-PgUp"
+        deg = pi/180.0
+        self.document.alpha -= 5*deg
         
+    def on_char(self, event):
+        # Accelaretors from the menu do not work reliably. Here we
+        # handle keys for scrolling on our own.
+        keycode = event.GetKeyCode()
+        ctrl = event.ControlDown()
+        shift = event.ShiftDown()
+        alt = event.AltDown()
+        #print(keycode)
+        if ctrl and not shift and not alt:
+            if keycode == 314:
+                self.moveleft()
+            elif keycode == 315:
+                self.moveup()
+            elif keycode == 316:
+                self.moveright()
+            elif keycode == 317:
+                self.movedown()
+            elif keycode == 366: # pgup
+                self.rotateleft()
+            elif keycode == 367: # pgdown
+                self.rotateright()
+            else:
+                event.Skip()
+        else:
+                event.Skip()
+            
+            
 
 
 
@@ -417,7 +457,7 @@ def test_00():
     doc.bmp = s
     doc.upper = 0.09859762675296653
     doc.lower = 0.03926645091693633
-    doc.hue = 0.3
+    doc.hue = 0.8
     w, h = main.canvas.bmp.Size
     doc.focus = 0.5*w, 0.5*h
 
