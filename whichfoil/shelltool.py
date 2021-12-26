@@ -4,7 +4,7 @@ import wx
 
 class ShellTool(wx.Frame):
     def __init__(self, main):
-        wx.Frame.__init__(self, main)
+        wx.Frame.__init__(self, main, style=wx.FRAME_FLOAT_ON_PARENT | wx.DEFAULT_FRAME_STYLE)
         self.main = main
         self.SetTitle("Python tool")
         win = wx.Panel(self)

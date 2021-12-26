@@ -17,6 +17,7 @@ def load_model(filename):
         s = s[len(magic):]
     state = json.loads(s)
     if '_bmp' in state:
+        # XXX python 3 only!!
         state['_bmp'] = bytes(state['_bmp'], 'latin-1')
     model = AnalysisModel()
     model.__setstate__(state)
