@@ -278,7 +278,7 @@ class Canvas(wx.ScrolledWindow, ViewBase):
             x = s-0.5*(virtual[0]-window[0])
         shift = wx.Point2D(x, y)
         focus_ = 0.5*wx.Point2D(*virtual)+shift
-        self.model.focus = inv(focus_)
+        self.model.focus = tuple(inv(focus_))
         event.Skip()
 
     def _draw_edge_handle(self, gc, p):
