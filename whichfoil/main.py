@@ -390,10 +390,12 @@ class MainWindow(wx.Frame):
         self.document.zoom /= 1.5
 
     def moveview(self, dx, dy):
-        zoom = self.document.zoom
-        x, y = self.document.focus
-        step = 20.0/zoom
-        self.document.focus = x+dx*step, y+dy*step
+        m = self.canvas.get_image2window()
+        focus_ = m(wx.Point2D(*self.document.focus))
+        step = 20.0
+        new_ = focus_+(dx*step, dy*step)
+        inv = m.Inverted()
+        self.document.focus = inv(new_)
 
     def moveleft(self):
         "Move left\tCtrl-left"

@@ -456,6 +456,8 @@ class Canvas(wx.ScrolledWindow, ViewBase):
             self.transient = None
             self._dragstart = None
             self._current = None
+        else:
+            event.Skip()
             
 
 def load_airfoil(p, warnings=None):
