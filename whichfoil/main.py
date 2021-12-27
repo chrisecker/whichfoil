@@ -100,7 +100,7 @@ class AirfoilBrowser(wx.Frame):
         for name in os.listdir(self.path):
             p = os.path.join(self.path, name)
             foilname = os.path.splitext(name)[0]
-            xl, yl = load_airfoil(p)
+            comments, (xl, yl) = load_airfoil(p)
             foils[foilname] = xl, yl
         self.foils = foils
 
@@ -231,6 +231,12 @@ class MainWindow(wx.Frame):
         t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
         sizer2.Add(t)
         FloatBinder(document, 'lower', t)
+
+        l = wx.StaticText(panel, label=_("y-scale factor:"))
+        sizer2.Add(l)
+        t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
+        sizer2.Add(t)
+        FloatBinder(document, 'yfactor', t)
         
         panel.SetSizer(sizer2)
         
@@ -451,7 +457,7 @@ def test_00():
     #canvas.zoom = 2
     #canvas.p1 = 10, 100
     #canvas.p2 = 500, 100
-    main.document.airfoil = "ag03", load_airfoil("foils/ah79k135-il.dat") # ag03.dat
+    main.document.airfoil = "ag03", load_airfoil("foils/ah79k135-il.dat")[1]
     s = open("test/ah79k135.gif", "rb").read()
     doc = main.document
     doc.bmp = s
@@ -465,6 +471,6 @@ def test_00():
 
     try:
         main.open_notebook(locals())
-    except ModuleNotFoundError:
+    except: # ModuleNotFoundError: not available in py2
         pass
     app.MainLoop()

@@ -176,6 +176,9 @@ class Canvas(wx.ScrolledWindow, ViewBase):
     def p2_changed(self, model, old):
         self.Refresh()
 
+    def yfactor_changed(self, model, old):
+        self.Refresh()
+        
     def upper_changed(self, model, old):
         self.Refresh()
 
@@ -304,6 +307,7 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         p1 = wx.Point2D(*model.p1)
         p2 = wx.Point2D(*model.p2)
         zoom = model.zoom
+        yfactor = model.yfactor
 
         bmp = self.bmp
         if bmp:
@@ -350,7 +354,7 @@ class Canvas(wx.ScrolledWindow, ViewBase):
             return
         
         name, (xv, yv) = model.airfoil
-
+        
         pen = wx.Pen(colour="green", width=2)
         gc.SetPen(pen)
 
@@ -363,9 +367,8 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         
         path = gc.CreatePath()
         first = True
-        for p in zip(xv, yv):
-            p_ = profile2win(wx.Point2D(*p))
-
+        for x, y in zip(xv, yv):
+            p_ = profile2win(wx.Point2D(x, y*yfactor))
             if first:
                 first = False
                 path.MoveToPoint(*p_)

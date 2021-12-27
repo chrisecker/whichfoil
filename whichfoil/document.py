@@ -34,6 +34,7 @@ class AnalysisModel(DocumentNode):
     lower = attribute("lower")
     bmp = attribute("bmp") # imagefile bytes array (py3) or string
     airfoil = attribute("airfoil")
+    yfactor = attribute("yfactor")
     focus = attribute("focus")
     xshift = attribute("xshift")
     yshift = attribute("yshift")
@@ -55,6 +56,7 @@ class AnalysisModel(DocumentNode):
     _upper = 0.2
     _bmp = None
     _airfoil = None
+    _yfactor = 1.0
     
     
     def save_as(self, filename):
