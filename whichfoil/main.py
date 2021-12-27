@@ -7,7 +7,7 @@ from math import pi
 from .menu import mk_menu
 from .document import AnalysisModel, load_model
 from .view import Canvas
-from .airfoil import load_airfoil
+from .airfoil import load_airfoil, interpolate_airfoil
 from .bindwx import Binder, TextBinder, InvalidValue
 
 def _(x): return x
@@ -107,8 +107,13 @@ class AirfoilBrowser(wx.Frame):
     def apply_filter(self, upper, lower, delta=0.005):
         r = set()
         for name, foil in self.foils.items():
-            y1 = min(foil[1])
-            y2 = max(foil[1])
+            xv, yv = foil
+            values = interpolate_airfoil(0.5, xv, yv)
+            if not values:
+                print("Cant interpolate", name)
+                continue
+            y1 = min(values)
+            y2 = max(values)
             if abs(y1+lower) > delta:
                  continue
             if abs(y2-upper) > delta:
@@ -449,6 +454,8 @@ class MainWindow(wx.Frame):
 def test_00():
     app = wx.App(True)
     from .document import AnalysisModel
+
+
     main = MainWindow()
     main.Show()
 
@@ -474,3 +481,10 @@ def test_00():
     except: # ModuleNotFoundError: not available in py2
         pass
     app.MainLoop()
+
+
+def test_01():
+    document = load_model("test/clarky.wfd")
+
+
+    

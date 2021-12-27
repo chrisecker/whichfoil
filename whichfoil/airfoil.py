@@ -87,3 +87,27 @@ def load_airfoil(p):
     return '\n'.join(comments), (xv, yv)
     
 
+def _interpolate(x, x1, x2, y1, y2):
+    if not (x1 <= x <= x2):
+        raise ValueError(x, x1, x2)
+    return y1+(y2-y1)/(x2-x1)*(x-x1) 
+
+def interpolate_airfoil(t, xv, yv):
+    """Determines the intersection of the profile coordinates with x=t
+
+    Returns a tuple (upper, lower).
+    """
+    if t<0 or t>1:
+        raise ValueError(t)
+    l = []
+    ax = None
+    for i, x in enumerate(xv):
+        if ax is not None:
+            if (ax<t and t<=x): 
+                ty = _interpolate(t, ax, x, yv[i-1], yv[i])
+                l.append(ty)        
+            elif (x<t and t<=ax): 
+                ty = _interpolate(t, x, ax, yv[i], yv[i-1])
+                l.append(ty)        
+        ax = x
+    return l
