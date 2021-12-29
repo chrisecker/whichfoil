@@ -2,6 +2,7 @@
 
 import wx
 import os
+import sys
 from math import pi
 
 from .menu import mk_menu
@@ -13,6 +14,8 @@ from .bindwx import Binder, TextBinder, InvalidValue
 def _(x): return x
 
 
+
+    
 class AngleBinder(TextBinder):
     def fromstr(self, s):
         value = s.split()[0]
@@ -193,6 +196,12 @@ class MainWindow(wx.Frame):
 
         sizer2 = wx.BoxSizer(wx.VERTICAL)
 
+        l = wx.StaticText(panel, label=_("air foil:"))
+        sizer2.Add(l)
+        t = wx.TextCtrl(panel, style=wx.TE_READONLY)
+        sizer2.Add(t)
+        self.t_airfoil = t
+        
         t = wx.Button(panel, label=u"Browse Airfoils")
         t.Bind(wx.EVT_BUTTON, self.on_browser)
         sizer2.Add(t)
@@ -264,6 +273,14 @@ class MainWindow(wx.Frame):
         #    title = title+' *'
         self.SetTitle(title)
 
+        # update airfoil name
+        foil = self.document.airfoil
+        if foil is None:
+            name = "<None>"
+        else:
+            name, coordinates = foil
+        self.t_airfoil.Value = name
+
         # update menus
         for updater in self.updaters:
             updater()
@@ -316,6 +333,8 @@ class MainWindow(wx.Frame):
             )
         if dlg.ShowModal() == wx.ID_OK:
             path = dlg.GetPath()
+            if not os.path.splitext(path)[1]:
+                path += '.wfd'
             self._save_as(path)
             self._filename = path
         dlg.Destroy()        
@@ -334,6 +353,23 @@ class MainWindow(wx.Frame):
                 return            
         self.Close(True)
 
+    def read_image(self, path):
+        s = open(path, "rb").read()
+        model = self.document
+        model.bmp = s
+        # reset canvas
+        w, h = self.canvas.bmp.Size
+        model.p1 = 0.1*w, 0.5*h
+        model.p2 = 0.9*w, 0.5*h
+        model.upper = 0.1 # upper camber 
+        model.lower = 0.1 # lower camber
+        model.mirror = False
+        model.scale = 1.0
+        model.xshift = 0
+        model.yshift = 0
+        model.alpha = 0.0
+        model.focus = 0.5*w, 0.5*h
+        
     def load_image(self):
         "Open image file"
         wildcard = wildcard = "All files (*.*)|*.*"
@@ -343,22 +379,8 @@ class MainWindow(wx.Frame):
             style=wx.FD_OPEN | wx.FD_CHANGE_DIR
             )
         if dlg.ShowModal() == wx.ID_OK:
-            model = self.document
             for path in dlg.GetPaths():
-                s = open(path, "rb").read()
-                model.bmp = s
-            # reset canvas
-            w, h = self.canvas.bmp.Size
-            model.p1 = 0.1*w, 0.5*h
-            model.p2 = 0.9*w, 0.5*h
-            model.upper = 0.1 # upper camber 
-            model.lower = 0.1 # lower camber
-            model.mirror = False
-            model.scale = 1.0
-            model.xshift = 0
-            model.yshift = 0
-            model.alpha = 0.0
-            model.focus = 0.5*w, 0.5*h
+                self.read_image(path)
         dlg.Destroy()
 
     def flip_image(self):
@@ -395,7 +417,7 @@ class MainWindow(wx.Frame):
         step = 20.0
         new_ = focus_+(dx*step, dy*step)
         inv = m.Inverted()
-        self.document.focus = inv(new_)
+        self.document.focus = tuple(inv(new_))
 
     def moveleft(self):
         "Move left\tCtrl-left"
@@ -451,6 +473,21 @@ class MainWindow(wx.Frame):
             
             
 
+def main():
+    app = wx.App(True)
+    args = sys.argv[1:]
+    if len(args):
+        for name in args:
+            if name.lower().endswith("wfd"):
+                main = MainWindow(filename=name)
+            else:
+                main = MainWindow()
+                main.read_image(name)
+            main.Show()
+    else:
+        main = MainWindow()
+        main.Show()
+    app.MainLoop()
 
 
 def test_00():
