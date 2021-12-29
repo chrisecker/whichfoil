@@ -295,7 +295,7 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         gc.DrawLines([p+(-e, +e), p+(+e, -e)])
         
             
-    _radius = 14
+    _radius = 18
     def on_paint(self, event):
         buffer = wx.EmptyBitmap(*self.Size)
         dc = wx.BufferedPaintDC(self, buffer)
@@ -440,22 +440,30 @@ class Canvas(wx.ScrolledWindow, ViewBase):
             transient = self._transient
             if transient is not None:
                 if self._current == 1:
-                    self.model.p1 = tuple(transient)
+                    model.p1 = tuple(transient)
                 elif self._current == 2:
-                    self.model.p2 = tuple(transient)
+                    model.p2 = tuple(transient)
                 elif self._current == 3: # lower camber
                     e = s.Normalized()
                     lower = -e.Dot(transient-center)/s.Length()
-                    self.model.lower = max(lower, 0.01) # XXX we cannot handle values of zero for now!
+                    model.lower = max(lower, 0.01) # XXX we cannot handle values of zero for now!
                     
                 elif self._current == 4: # upper camber
                     e = s.Normalized()
                     upper = e.Dot(transient-center)/s.Length()
-                    self.model.upper = max(upper, 0.01) # XXX we cannot handle values of zero for now!
+                    model.upper = max(upper, 0.01) # XXX we cannot handle values of zero for now!
             
             self.transient = None
             self._dragstart = None
             self._current = None
+        elif event.WheelRotation > 0:
+            model.zoom *= 1.5
+            model.focus = p
+
+        elif event.WheelRotation < 0:
+            model.zoom /= 1.5
+            model.focus = p
+
         else:
             event.Skip()
             
