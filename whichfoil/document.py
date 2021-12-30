@@ -33,6 +33,7 @@ class AnalysisModel(DocumentNode):
     #shift = attribute("shift")
     p1 = attribute("p1")
     p2 = attribute("p2")
+    handles = attribute("handles")
     upper = attribute("upper")
     lower = attribute("lower")
     bmp = attribute("bmp") # imagefile bytes array (py3) or string
@@ -55,6 +56,7 @@ class AnalysisModel(DocumentNode):
     _transparency = 1.0
     _p1 = 0, 50
     _p2 = 100, 50
+    _handles = (0.2, -0.2)*3
     _lower = 0.2
     _upper = 0.2
     _bmp = None

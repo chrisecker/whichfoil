@@ -260,6 +260,15 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         r = create_matrix().Translated(vc_-ic_)(m)
         #assert r(ic) == vc_ # works only when zoom ist not too small
         return r
+
+    def get_profile2image(self):
+        model = self.model
+        p1 = wx.Point2D(*model.p1)
+        p2 = wx.Point2D(*model.p2)
+        f = (p2-p1).Length()
+        alpha = -math.atan2((p1[1]-p2[1]), p2[0]-p1[0])
+        m = create_matrix().Translated(p1).Rotated(alpha).Scaled(f, -f)
+        return m
     
     def on_scroll(self, event):
         m = self.get_image2virtual()
@@ -327,55 +336,55 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         for p in p1, p2:
             self._draw_edge_handle(gc, t(p))
 
-        p12 = p2-p1
-        s = wx.Point2D(p12[1], -p12[0]) # senkrechte
-        center = 0.5*(p1+p2) # Mitte zwischen p1 und p2
-        p3 = center-model.lower*s
-        p4 = center+model.upper*s
-
-        for p in p3, p4:
-            self._draw_sub_handle(gc, t(p))
+        #p12 = p2-p1
+        #s = wx.Point2D(p12[1], -p12[0]) # senkrechte
+        #center = 0.5*(p1+p2) # Mitte zwischen p1 und p2
+        #p3 = center-model.lower*s
+        #p4 = center+model.upper*s
+        #
+        #for p in p3, p4:
+        #    self._draw_sub_handle(gc, t(p))
         
-        p = self._transient
-        if p:
-            p_ = t(p)
+        if self._transient:
+            p_ = t(self._transient)
             pen = wx.Pen(colour="grey", width=linewidth)
             color = wx.Colour(128, 128, 128, 50)
             brush = wx.Brush(color)
             gc.SetBrush(brush)
             
             gc.SetPen(pen)
-            if self._current in (1, 2):
-                self._draw_edge_handle(gc, t(p))
+            if self._current in (6, 7):
+                self._draw_edge_handle(gc, p_)
             else:
-                self._draw_sub_handle(gc, t(p))                
+                self._draw_sub_handle(gc, p_)                
             
-        if model.airfoil is None:
-            return
-        
-        name, (xv, yv) = model.airfoil
-        
-        pen = wx.Pen(colour="green", width=2)
-        gc.SetPen(pen)
+        profile2win = image2window(self.get_profile2image())
 
-        f = (p2-p1).Length()
-        alpha = -math.atan2((p1[1]-p2[1]), p2[0]-p1[0])
-        m = create_matrix().Translated(p1).Rotated(alpha).Scaled(f, -f) # die Reihenfolge finde ich komisch!
-        # ... entspricht aber wx. finde ich auch komisch.
-        self.profile2image = m
-        profile2win = image2window(m)
-        
-        path = gc.CreatePath()
-        first = True
-        for x, y in zip(xv, yv):
-            p_ = profile2win(wx.Point2D(x, y*yfactor))
-            if first:
-                first = False
-                path.MoveToPoint(*p_)
-            else:
-                path.AddLineToPoint(*p_)
-        gc.StrokePath(path)        
-        
+        if model.airfoil is not None:
+            name, (xv, yv) = model.airfoil            
+            path = gc.CreatePath()
+            first = True
+            for x, y in zip(xv, yv):
+                p_ = profile2win(wx.Point2D(x, y*yfactor))
+                if first:
+                    first = False
+                    path.MoveToPoint(*p_)
+                else:
+                    path.AddLineToPoint(*p_)
+            pen = wx.Pen(colour="green", width=2)
+            gc.SetPen(pen)
+            gc.StrokePath(path)        
+
+        pen = wx.Pen(colour="red", width=linewidth)        
+        gc.SetPen(pen)        
+        for x, y in zip(self.xpositions, model.handles):
+            p = wx.Point2D(x, y)
+            self._draw_sub_handle(gc, profile2win(p))                
+                
+
+    # x-part of position of handles. Fixed.    
+    xpositions = (0.25, 0.25, 0.5, 0.5, 0.75, 0.75)
+    
     def set_transient(self, p):
         if p != self._transient:
             old = self._transient
@@ -392,6 +401,9 @@ class Canvas(wx.ScrolledWindow, ViewBase):
     _dragstart = None # in image coordinates
     def mouse_event(self, event):
         image2window = self.get_image2window()
+        profile2image = self.get_profile2image()
+        profile2window = image2window(profile2image)
+
         model = self.model
         p1 = wx.Point2D(*model.p1)
         p2 = wx.Point2D(*model.p2)
@@ -400,25 +412,20 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         p1_ = image2window(p1)
         p2_ = image2window(p2)
 
-        p12 = p2-p1
-        s = wx.Point2D(p12[1], -p12[0]) # senkrechte
-        center = 0.5*(p1+p2) # Mitte zwischen p1 und p2
-        p3 = center-model.lower*s
-        p4 = center+model.upper*s
+        hvec__ = [wx.Point2D(*p) for p in zip(self.xpositions, model.handles)]
+        hvec_ = [profile2window(p) for p in hvec__]
+        hvec = [profile2image(p) for p in hvec__]
         
         inv = image2window.Inverted()
         p_ = wx.Point2D(*event.Position)
         p = inv(p_)
-        #print("p2_=", p2_, "; p=", p)
 
         radius = self._radius
-
         if event.Moving():
             flag = False
-            for i, x in enumerate((p1, p2, p3, p4)):
-                x_ = image2window(x)
+            for i, x_ in enumerate(hvec_+[p1_, p2_]):
                 if (x_-p_).Length()<=radius:
-                    self._current = i+1
+                    self._current = i
                     self.SetCursor(wx.StockCursor(wx.CURSOR_CROSS))
                     flag = True
             if not flag:
@@ -426,36 +433,42 @@ class Canvas(wx.ScrolledWindow, ViewBase):
                 self.SetCursor(wx.StockCursor(wx.CURSOR_DEFAULT))
 
 
-        if event.Dragging() and self._current:
-            if self._dragstart is None:                
-                self._dragstart = p
-            points = None, p1, p2, p3, p4
-
-            # transient ist in Bildkoordinaten, Position und Dragstart
-            # dagegen in Window-Koordinaten
-            delta = p-self._dragstart
-            self.transient = points[self._current]+delta
+        #if event.LeftDown():
             
-        elif event.ButtonUp():
+        if event.Dragging() and self._current is not None:
+            if self._dragstart is None:
+                # Note that dragstart is in image coordinates!
+                self._dragstart = p 
+            points = hvec+[p1, p2]
+            delta = p-self._dragstart
+            # Note that transient is also in image coordinates
+            t = points[self._current]+delta
+            if self._current<6:
+                m = profile2image.Inverted()
+                t__ = m(t)
+                t__[0] = self.xpositions[self._current]
+                t = profile2image(t__)
+            self.transient = t
+            
+        elif event.LeftUp():
             transient = self._transient
             if transient is not None:
-                if self._current == 1:
+                i = self._current
+                if i in range(6):
+                    m = profile2image.Inverted()
+                    handles = list(model.handles)
+                    handles[i] = m(transient)[1]
+                    model.handles = tuple(handles)
+                elif i == 6:
                     model.p1 = tuple(transient)
-                elif self._current == 2:
+                elif i == 7:
                     model.p2 = tuple(transient)
-                elif self._current == 3: # lower camber
-                    e = s.Normalized()
-                    lower = -e.Dot(transient-center)/s.Length()
-                    model.lower = max(lower, 0.01) # XXX we cannot handle values of zero for now!
-                    
-                elif self._current == 4: # upper camber
-                    e = s.Normalized()
-                    upper = e.Dot(transient-center)/s.Length()
-                    model.upper = max(upper, 0.01) # XXX we cannot handle values of zero for now!
+                self.Refresh() # to remove the original 
             
             self.transient = None
             self._dragstart = None
             self._current = None
+
         elif event.WheelRotation > 0:
             model.zoom *= 1.5
             model.focus = p
