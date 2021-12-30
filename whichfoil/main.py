@@ -501,17 +501,18 @@ def test_00():
 
     #canvas.transient = (50, 50)
     #canvas.zoom = 2
-    #canvas.p1 = 10, 100
-    #canvas.p2 = 500, 100
-    main.document.airfoil = "ag03", load_airfoil("foils/ah79k135-il.dat")[1]
     s = open("test/ah79k135.gif", "rb").read()
     doc = main.document
+    doc.airfoil = "ag03", load_airfoil("foils/ah79k135-il.dat")[1]
     doc.bmp = s
     doc.upper = 0.09859762675296653
     doc.lower = 0.03926645091693633
     doc.hue = 0.8
     w, h = main.canvas.bmp.Size
     doc.focus = 0.5*w, 0.5*h
+    doc.p1 = (148.0, 433.0)
+    doc.p2 = (1087.0, 437.0)
+    
 
     #canvas.shift = 100, 0
 
