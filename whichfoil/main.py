@@ -317,30 +317,14 @@ class MainWindow(wx.Frame):
             sizer2.Add(ty)        
             VectorBinder(document, 'focus', tx, ty)
 
-            #l = wx.StaticText(panel, label=_("upper camber:"))
-            #sizer2.Add(l)
-            #t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
-            #sizer2.Add(t)
-            #FloatBinder(document, 'upper', t)
-
-            #l = wx.StaticText(panel, label=_("lower camber:"))
-            #sizer2.Add(l)
-            #t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
-            #sizer2.Add(t)
-            #FloatBinder(document, 'lower', t)
-
-            l = wx.StaticText(panel, label=_("y-scale factor:"))
-            sizer2.Add(l)
-            t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
-            sizer2.Add(t)
-            FloatBinder(document, 'yfactor', t)
-        
+        l = wx.StaticText(panel, label=_("y-scale factor:"))
+        sizer2.Add(l)
+        t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
+        sizer2.Add(t)
+        FloatBinder(document, 'yfactor', t)        
         panel.SetSizer(sizer2)
-        
-        
+                
         self.SetSizer(sizer)
-        #sizer2.Fit(self)
-        #self.Layout()
         self.Bind(wx.EVT_IDLE, self.update)
         self.SetFocus()
 
