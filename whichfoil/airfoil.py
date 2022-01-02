@@ -33,8 +33,7 @@ def descending(l):
     return True    
 
 
-def load_airfoil(p):
-    f = open(p)
+def load_airfoil(f):
     next = f.readline
 
     l = next()

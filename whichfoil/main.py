@@ -3,13 +3,19 @@
 import wx
 import os
 import sys
-from math import pi
+import pkg_resources
+try:
+    import importlib_resources as resources # py2
+except:
+    from importlib import resources # py3
 
+from math import pi
 from .menu import mk_menu
 from .document import AnalysisModel, load_model
 from .view import Canvas
 from .airfoil import load_airfoil, interpolate_airfoil
 from .bindwx import Binder, TextBinder, InvalidValue
+from . import foils
 
 
 DEBUG = False
@@ -70,7 +76,6 @@ class VectorBinder(Binder):
 
     
 class AirfoilBrowser(wx.Frame):
-    path = "/home/ecker/foils" # XXX
     def __init__(self, main):
         self.main = main
         self.read_foils()
@@ -92,7 +97,7 @@ class AirfoilBrowser(wx.Frame):
         s2.Add(l, 1, wx.ALL, 5)
         t = wx.TextCtrl(self, style=wx.TE_PROCESS_ENTER)
         t.Bind(wx.EVT_TEXT_ENTER, self.on_delta)
-        t.Value = "0.005"
+        t.Value = "0.01"
         self.t = t
         s2.Add(t, 0, wx.ALL, 5)
         s.Add(s2, 0)         
@@ -101,37 +106,60 @@ class AirfoilBrowser(wx.Frame):
         self.Show()
         
     def read_foils(self):
-        foils = {}
-        import os
-        for name in os.listdir(self.path):
-            p = os.path.join(self.path, name)
-            foilname = os.path.splitext(name)[0]
-            comments, (xl, yl) = load_airfoil(p)
-            foils[foilname] = xl, yl
-        self.foils = foils
+        d = {}
+        # This drives me nuts! Resources in python3.8 does not have "files"!
+        if hasattr(resources, 'files'):
+            files = resources.files(foils)
+            for p in files.iterdir():
+                if not p.name.lower().endswith('.dat'):
+                    continue
+                f = p.open(encoding='latin-1')
+                comments, (xl, yl) = load_airfoil(f)
+                foilname = p.name
+                d[foilname] = xl, yl
+        else:
+            contents = resources.contents(foils)
+            for p in contents:
+                if not p.lower().endswith('.dat'):
+                    continue
+                f = resources.open_text(foils, p, encoding='latin-1')
+                comments, (xl, yl) = load_airfoil(f)
+                d[p] = xl, yl          
+        self.foils = d
 
-    def apply_filter(self, upper, lower, delta=0.005):
+    def apply_filter(self, sliders25, sliders50, sliders75, delta=0.005):
         r = set()
+        positions = [0.25, 0.5, 0.75]
+        sliders = sliders25, sliders50, sliders75
         for name, foil in self.foils.items():
             xv, yv = foil
-            values = interpolate_airfoil(0.5, xv, yv)
-            if not values:
-                print("Cant interpolate", name)
-                continue
-            y1 = min(values)
-            y2 = max(values)
-            if abs(y1+lower) > delta:
-                 continue
-            if abs(y2-upper) > delta:
-                 continue
-            r.add(name)
+            ok = True
+            for sx, sy in zip(positions, sliders):                
+                values = interpolate_airfoil(sx, xv, yv)
+                if not values:
+                     ok = False
+                     break
+                y1 = min(values)
+                y2 = max(values)
+                lower = min(sy)
+                upper = max(sy)
+                if abs(y1-lower) > delta:
+                     ok = False
+                     break
+                if abs(y2-upper) > delta:
+                     ok = False
+                     break
+            if ok:
+                r.add(name)
         self.lb.SetItems(sorted(r))
 
     def on_filter(self, event):
         delta = float(self.t.Value)
-        upper = self.main.document.upper
-        lower = self.main.document.lower
-        self.apply_filter(upper, lower, delta)
+        sliders = self.main.document.sliders
+        sliders25 = sliders[0:2]
+        sliders50 = sliders[2:4]
+        sliders75 = sliders[4:6]
+        self.apply_filter(sliders25, sliders50, sliders75, delta)
 
     def on_delta(self, event):
         t = self.t
@@ -492,38 +520,35 @@ def main():
 
 
 def test_00():
-    app = wx.App(True)
+    app = wx.App(False)
     from .document import AnalysisModel
 
 
     main = MainWindow()
     main.Show()
 
-
-    #canvas.transient = (50, 50)
-    #canvas.zoom = 2
     s = open("test/ah79k135.gif", "rb").read()
     doc = main.document
-    doc.airfoil = "ag03", load_airfoil("foils/ah79k135-il.dat")[1]
     doc.bmp = s
     doc.hue = 0.8
     w, h = main.canvas.bmp.Size
     doc.focus = 0.5*w, 0.5*h
     doc.p1 = (148.0, 433.0)
     doc.p2 = (1087.0, 437.0)
-    
-
-    #canvas.shift = 100, 0
-
-    try:
-        main.open_notebook(locals())
-    except: # ModuleNotFoundError: not available in py2
-        pass
+    doc.sliders = (0.0885, -0.0361, 0.0940, -0.0351, 0.0513, -0.0224)
+    if 0:
+        try:
+            main.open_notebook(locals())
+        except: # ModuleNotFoundError: not available in py2
+            pass
+    main.on_browser(None)
     app.MainLoop()
 
 
 def test_01():
     document = load_model("test/clarky.wfd")
+
+
 
 
     
