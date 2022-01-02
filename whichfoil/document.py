@@ -28,15 +28,12 @@ def load_model(filename):
 
 
 class AnalysisModel(DocumentNode):
-    alpha = attribute("alpha")
-    zoom = attribute("zoom")
-    #shift = attribute("shift")
-    p1 = attribute("p1")
-    p2 = attribute("p2")
-    handles = attribute("handles")
-    upper = attribute("upper")
-    lower = attribute("lower")
-    bmp = attribute("bmp") # imagefile bytes array (py3) or string
+    alpha = attribute("alpha", "view rotation in degrees")
+    zoom = attribute("zoom", "zoom factor")
+    p1 = attribute("p1", "reference point leading edge")
+    p2 = attribute("p2", "reference point trailing edge")
+    sliders = attribute("sliders", "tuple of sliders positions")
+    bmp = attribute("bmp", "imagefile bytes array (py3) or string (py2)")
     airfoil = attribute("airfoil")
     yfactor = attribute("yfactor")
     focus = attribute("focus")
@@ -56,9 +53,7 @@ class AnalysisModel(DocumentNode):
     _transparency = 1.0
     _p1 = 0, 50
     _p2 = 100, 50
-    _handles = (0.2, -0.2)*3
-    _lower = 0.2
-    _upper = 0.2
+    _sliders = (0.2, -0.2)*3
     _bmp = None
     _airfoil = None
     _yfactor = 1.0

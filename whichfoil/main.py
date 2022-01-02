@@ -11,6 +11,9 @@ from .view import Canvas
 from .airfoil import load_airfoil, interpolate_airfoil
 from .bindwx import Binder, TextBinder, InvalidValue
 
+
+DEBUG = False
+
 def _(x): return x
 
 
@@ -20,12 +23,12 @@ class AngleBinder(TextBinder):
     def fromstr(self, s):
         value = s.split()[0]
         try:
-            return float(value)*pi/180.0
+            return float(value)
         except ValueError:
             raise InvalidValue(s)
 
     def tostr(self, value):
-        return u"%.1f °" % (value*180.0/pi)
+        return u"%.1f °" % value
 
 
 class FloatBinder(TextBinder):
@@ -218,39 +221,40 @@ class MainWindow(wx.Frame):
         sizer2.Add(t)
         AngleBinder(document, 'alpha', t)
         
-        l = wx.StaticText(panel, label=_("zoom:"))
-        sizer2.Add(l)
-        t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
-        sizer2.Add(t)
-        FloatBinder(document, 'zoom', t)
+        if DEBUG:
+            l = wx.StaticText(panel, label=_("zoom:"))
+            sizer2.Add(l)
+            t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
+            sizer2.Add(t)
+            FloatBinder(document, 'zoom', t)
 
-        l = wx.StaticText(panel, label=_("x-focus:"))
-        sizer2.Add(l)
-        tx = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
-        sizer2.Add(tx)
-        l = wx.StaticText(panel, label=_("y-focus:"))
-        sizer2.Add(l)
-        ty = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
-        sizer2.Add(ty)        
-        VectorBinder(document, 'focus', tx, ty)
+            l = wx.StaticText(panel, label=_("x-focus:"))
+            sizer2.Add(l)
+            tx = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
+            sizer2.Add(tx)
+            l = wx.StaticText(panel, label=_("y-focus:"))
+            sizer2.Add(l)
+            ty = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
+            sizer2.Add(ty)        
+            VectorBinder(document, 'focus', tx, ty)
 
-        l = wx.StaticText(panel, label=_("upper camber:"))
-        sizer2.Add(l)
-        t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
-        sizer2.Add(t)
-        FloatBinder(document, 'upper', t)
+            #l = wx.StaticText(panel, label=_("upper camber:"))
+            #sizer2.Add(l)
+            #t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
+            #sizer2.Add(t)
+            #FloatBinder(document, 'upper', t)
 
-        l = wx.StaticText(panel, label=_("lower camber:"))
-        sizer2.Add(l)
-        t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
-        sizer2.Add(t)
-        FloatBinder(document, 'lower', t)
+            #l = wx.StaticText(panel, label=_("lower camber:"))
+            #sizer2.Add(l)
+            #t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
+            #sizer2.Add(t)
+            #FloatBinder(document, 'lower', t)
 
-        l = wx.StaticText(panel, label=_("y-scale factor:"))
-        sizer2.Add(l)
-        t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
-        sizer2.Add(t)
-        FloatBinder(document, 'yfactor', t)
+            l = wx.StaticText(panel, label=_("y-scale factor:"))
+            sizer2.Add(l)
+            t = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
+            sizer2.Add(t)
+            FloatBinder(document, 'yfactor', t)
         
         panel.SetSizer(sizer2)
         
@@ -361,8 +365,7 @@ class MainWindow(wx.Frame):
         w, h = self.canvas.bmp.Size
         model.p1 = 0.1*w, 0.5*h
         model.p2 = 0.9*w, 0.5*h
-        model.upper = 0.1 # upper camber 
-        model.lower = 0.1 # lower camber
+        model.sliders = (0.2, -0.2)*3
         model.mirror = False
         model.scale = 1.0
         model.xshift = 0
@@ -437,13 +440,11 @@ class MainWindow(wx.Frame):
 
     def rotateright(self):
         "Rotate right\tCtrl-PgDn"
-        deg = pi/180.0
-        self.document.alpha += 5*deg
+        self.document.alpha += 5
 
     def rotateleft(self):
         "Rotate left\tCtrl-PgUp"
-        deg = pi/180.0
-        self.document.alpha -= 5*deg
+        self.document.alpha -= 5
         
     def on_char(self, event):
         # Accelaretors from the menu do not work reliably. Here we
@@ -505,8 +506,6 @@ def test_00():
     doc = main.document
     doc.airfoil = "ag03", load_airfoil("foils/ah79k135-il.dat")[1]
     doc.bmp = s
-    doc.upper = 0.09859762675296653
-    doc.lower = 0.03926645091693633
     doc.hue = 0.8
     w, h = main.canvas.bmp.Size
     doc.focus = 0.5*w, 0.5*h

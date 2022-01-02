@@ -179,12 +179,6 @@ class Canvas(wx.ScrolledWindow, ViewBase):
     def yfactor_changed(self, model, old):
         self.Refresh()
         
-    def upper_changed(self, model, old):
-        self.Refresh()
-
-    def lower_changed(self, model, old):
-        self.Refresh()
-        
     def airfoil_changed(self, model, old):
         self.Refresh()
 
@@ -209,7 +203,7 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         else:
             w, h = bmp.Size
         #alpha = math.atan2((p1[1]-p2[1]), p2[0]-p1[0])
-        alpha = self.model.alpha
+        alpha = self.model.alpha*pi/180.0
         # Alpha >0 bedeutet eine Drehung des Bildes im Uhrzeigersinn!
         zoom = self.model.zoom
         #xshift = self.model.xshift
@@ -377,12 +371,12 @@ class Canvas(wx.ScrolledWindow, ViewBase):
 
         pen = wx.Pen(colour="red", width=linewidth)        
         gc.SetPen(pen)        
-        for x, y in zip(self.xpositions, model.handles):
+        for x, y in zip(self.xpositions, model.sliders):
             p = wx.Point2D(x, y)
             self._draw_sub_handle(gc, profile2win(p))                
                 
 
-    # x-part of position of handles. Fixed.    
+    # x-part of position of sliders. Fixed.    
     xpositions = (0.25, 0.25, 0.5, 0.5, 0.75, 0.75)
     
     def set_transient(self, p):
@@ -412,7 +406,7 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         p1_ = image2window(p1)
         p2_ = image2window(p2)
 
-        hvec__ = [wx.Point2D(*p) for p in zip(self.xpositions, model.handles)]
+        hvec__ = [wx.Point2D(*p) for p in zip(self.xpositions, model.sliders)]
         hvec_ = [profile2window(p) for p in hvec__]
         hvec = [profile2image(p) for p in hvec__]
         
@@ -456,9 +450,9 @@ class Canvas(wx.ScrolledWindow, ViewBase):
                 i = self._current
                 if i in range(6):
                     m = profile2image.Inverted()
-                    handles = list(model.handles)
-                    handles[i] = m(transient)[1]
-                    model.handles = tuple(handles)
+                    sliders = list(model.sliders)
+                    sliders[i] = m(transient)[1]
+                    model.sliders = tuple(sliders)
                 elif i == 6:
                     model.p1 = tuple(transient)
                 elif i == 7:
