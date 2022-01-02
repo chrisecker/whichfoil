@@ -75,19 +75,89 @@ class VectorBinder(Binder):
         return x, y
 
     
+
+_airfoils = None
+def read_airfoils():
+    global _airfoils
+    if _airfoils is not None:
+        return _airfoils
+    d = {}
+    # This drives me nuts! Resources in python3.8 does not have "files"!
+    if hasattr(resources, 'files'):
+        files = resources.files(foils)
+        for p in files.iterdir():
+            if not p.name.lower().endswith('.dat'):
+                continue
+            f = p.open(encoding='latin-1')
+            comments, (xl, yl) = load_airfoil(f)
+            foilname = p.name
+            d[foilname] = xl, yl
+    else:
+        contents = resources.contents(foils)
+        for p in contents:
+            if not p.lower().endswith('.dat'):
+                continue
+            f = resources.open_text(foils, p, encoding='latin-1')
+            comments, (xl, yl) = load_airfoil(f)
+            d[p] = xl, yl
+    _airfoils = d
+    return d
+
+    
 class AirfoilBrowser(wx.Frame):
     def __init__(self, main):
         self.main = main
-        self.read_foils()
-        style=wx.FRAME_FLOAT_ON_PARENT | wx.DEFAULT_FRAME_STYLE#| wx.FRAME_TOOL_WINDOW
-        wx.Frame.__init__(self, main, style=style, title="Air foil browser")
+        self.foils = read_airfoils()
+        style=wx.FRAME_FLOAT_ON_PARENT | wx.DEFAULT_FRAME_STYLE
+        wx.Frame.__init__(self, main, style=style, title="Browse airfoils")
+        s = wx.BoxSizer(wx.VERTICAL)
+
+        t = wx.SearchCtrl(self, style=wx.TE_PROCESS_ENTER)
+        t.Bind(wx.EVT_TEXT_ENTER, self.on_filter)
+        self.t = t
+        s.Add(t, 0, wx.EXPAND|wx.ALL, 5)
+        
+        lb = wx.ListBox(self)
+        lb.Bind(wx.EVT_LISTBOX_DCLICK, self.on_load)
+        s.Add(lb, 1, wx.EXPAND)
+        b = wx.Button(self, label="filter")
+        b.Bind(wx.EVT_BUTTON, self.on_filter)
+        s.Add(b, 0, wx.EXPAND)
+
+        self.Sizer = s
+        self.lb = lb
+        self.Show()
+        self.on_filter()
+        
+    def apply_filter(self, pattern):
+        r = set()
+        pattern = pattern.lower()
+        for name, foil in self.foils.items():
+            if pattern in name.lower():
+                r.add(name)
+        self.lb.SetItems(sorted(r))
+
+    def on_filter(self, event=None):
+        self.apply_filter(self.t.Value)
+
+    def on_load(self, event):
+        i = event.GetSelection()
+        name = self.lb.Items[i]
+        airfoil = self.foils[name]
+        self.main.document.airfoil = name, airfoil
+
+
+        
+class AirfoilMatcher(wx.Frame):
+    def __init__(self, main):
+        self.main = main
+        self.foils = read_airfoils()
+        style=wx.FRAME_FLOAT_ON_PARENT | wx.DEFAULT_FRAME_STYLE
+        wx.Frame.__init__(self, main, style=style, title="Match airfoils")
         s = wx.BoxSizer(wx.VERTICAL)
         lb = wx.ListBox(self)
         lb.Bind(wx.EVT_LISTBOX_DCLICK, self.on_load)
         s.Add(lb, 1, wx.EXPAND)
-        #b = wx.Button(self, label="load")
-        #b.Bind(wx.EVT_BUTTON, self.on_load)
-        #s.Add(b, 0, wx.EXPAND)
         b = wx.Button(self, label="filter")
         b.Bind(wx.EVT_BUTTON, self.on_filter)
         s.Add(b, 0, wx.EXPAND)
@@ -105,28 +175,6 @@ class AirfoilBrowser(wx.Frame):
         self.lb = lb
         self.Show()
         
-    def read_foils(self):
-        d = {}
-        # This drives me nuts! Resources in python3.8 does not have "files"!
-        if hasattr(resources, 'files'):
-            files = resources.files(foils)
-            for p in files.iterdir():
-                if not p.name.lower().endswith('.dat'):
-                    continue
-                f = p.open(encoding='latin-1')
-                comments, (xl, yl) = load_airfoil(f)
-                foilname = p.name
-                d[foilname] = xl, yl
-        else:
-            contents = resources.contents(foils)
-            for p in contents:
-                if not p.lower().endswith('.dat'):
-                    continue
-                f = resources.open_text(foils, p, encoding='latin-1')
-                comments, (xl, yl) = load_airfoil(f)
-                d[p] = xl, yl          
-        self.foils = d
-
     def apply_filter(self, sliders25, sliders50, sliders75, delta=0.005):
         r = set()
         positions = [0.25, 0.5, 0.75]
@@ -184,6 +232,7 @@ class MainWindow(wx.Frame):
     image_entries = ['load_image', 'flip_image']
     view_entries = ['zoomin', 'zoomout', 'moveleft', 'moveright', 'moveup', 'movedown',
                     'rotateleft', 'rotateright']
+    airfoil_entries = ['open_browser', 'open_matcher']
     debug_entries = ['open_notebook', 'open_shell']
 
     _filename = None
@@ -199,6 +248,8 @@ class MainWindow(wx.Frame):
             mk_menu(self, self.image_entries, updaters, accel), '&Image')
         menubar.Append(
             mk_menu(self, self.view_entries, updaters, accel), '&View')
+        menubar.Append(
+            mk_menu(self, self.airfoil_entries, updaters, accel), '&Airfoil')
         menubar.Append(
             mk_menu(self, self.debug_entries, updaters, accel), '&Debug')
         self.SetMenuBar(menubar)
@@ -233,8 +284,8 @@ class MainWindow(wx.Frame):
         sizer2.Add(t)
         self.t_airfoil = t
         
-        t = wx.Button(panel, label=u"Browse Airfoils")
-        t.Bind(wx.EVT_BUTTON, self.on_browser)
+        t = wx.Button(panel, label=u"Match Airfoils")
+        t.Bind(wx.EVT_BUTTON, self.open_matcher)
         sizer2.Add(t)
         
         l = wx.StaticText(panel, label=_("hue:"))
@@ -317,10 +368,16 @@ class MainWindow(wx.Frame):
         for updater in self.updaters:
             updater()
         
-    def on_browser(self, event):
+    def open_matcher(self, event=None):
+        "Match airfoils"
+        self.matcher = AirfoilMatcher(self)
+        # store it for debugging and scripting
+
+    def open_browser(self, event=None):
+        "Browse airfoils"
         self.browser = AirfoilBrowser(self)
         # store it for debugging and scripting
-    
+            
     def new(self):
         "New Window"
         f = MainWindow(None)
@@ -541,7 +598,7 @@ def test_00():
             main.open_notebook(locals())
         except: # ModuleNotFoundError: not available in py2
             pass
-    main.on_browser(None)
+    main.open_browser(None)
     app.MainLoop()
 
 
