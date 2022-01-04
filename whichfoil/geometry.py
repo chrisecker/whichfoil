@@ -1,59 +1,7 @@
 # -*- coding:latin-1 -*-
 
-"""Variante der affinen Geometry, die sich in wx integriert. Es werden 
-Point, Rect und Size von wx verwendet. Es ist zu beachten, dass
-Koordinaten in Wx immer aus ganzen Zahlen bestehen.
-
-Der Trafo kann auch mit Float-Koordinaten umgehehn, wenn sie als Tupel
-übegeben werden: trafo.TransformPoint((1.3, 2.1))
-
-Achtung: wx verwendet ein linkshändiges Koordinatensystem. Das macht
-sich bei Transformationen bemerkbar. Trafos in wx haben zwar exakt die
-gleichen Koeffizienten, sie transformieren aber die Punkte anders. Um
-die jeweils gleiche Transformation z uerreichen, müssen winkel in wx
-mit -1 multipliziert werden. Dann stimmen die Koeffizienten nicht
-überein (die interne Formel von wx berücksichtigt das KS wohl.)
-
-Es sollte recht einfach sein, die Formel in TransformPoint so zu
-ändern, dass sie der von WX entspricht.
-
-----
-https://github.com/wxWidgets/wxWidgets/blob/master/src/common/affinematrix2d.cpp
-
-
-// applies that matrix to the point
-//                           | m_11  m_12   0 |
-// | src.m_x  src._my  1 | x | m_21  m_22   0 |
-//                           | m_tx  m_ty   1 |
-wxPoint2DDouble
-wxAffineMatrix2D::DoTransformPoint(const wxPoint2DDouble& src) const
-{
-    if ( IsIdentity() )
-        return src;
-
-    return wxPoint2DDouble(src.m_x * m_11 + src.m_y * m_21 + m_tx,
-                           src.m_x * m_12 + src.m_y * m_22 + m_ty);
-}
-
-Kann man das einfacher schreiben?
-
-
- | x'|               | m_11  m_12   0 |
- | y'| = |x  y  1| * | m_21  m_22   0 |
- | 1 |               | m_tx  m_ty   1 |
-
-
-
-
-
-Skencil:
--                    / m11 m12 v1 \ / x \
--                    |            | |   |
--                 ^= | m21 m22 v2 | | y |
--                    |            | |   |
--                    \ 0   0   1  / \ 1 /
-
-
+"""
+Attempt to make it easier to deal with coordinates and transformations in wx.
 """
 
 import math
@@ -397,9 +345,12 @@ def _MTransformed(self, m):
 wx.GraphicsMatrix.Transformed = _MTransformed
 
 def _MRotated(self, angle, center=(0, 0)):
-    # XXX TODO: implement center
+    c = cos(angle)
+    s = sin(angle)
+    x, y = center
+    t = create_matrix(c, +s, -s, c, s*y-c*x+x, -c*y-s*x+y)
     r = self.Copy()
-    r.Rotate(angle)
+    r.Concat(t)
     return r
 wx.GraphicsMatrix.Rotated = _MRotated
     
@@ -416,6 +367,14 @@ def _MScaled(self, f1, f2=None):
     r.Scale(f1, f2)
     return r    
 wx.GraphicsMatrix.Scaled = _MScaled
+
+def _MZoomed(self, z, p):
+    "Zoom with focus on point p"
+    t = create_matrix(z, 0.0, 0.0, z, p[0]*(1-z), p[1]*(1-z))
+    r = self.Copy()
+    r.Concat(t)
+    return r
+wx.GraphicsMatrix.Zoomed = _MZoomed
 
 def _MInverted(self):
     r = self.Copy()
@@ -477,5 +436,3 @@ def test_02():
     
 if __name__ == '__main__':
     app = wx.App()
-    test_01()
-    print ("ok")
