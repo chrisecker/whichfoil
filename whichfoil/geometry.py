@@ -7,7 +7,7 @@ Attempt to make it easier to deal with coordinates and transformations in wx.
 import math
 import wx
 
-from math import sqrt
+from math import sqrt, sin, cos
 from copy import copy
 
 from wx import Point, Rect
