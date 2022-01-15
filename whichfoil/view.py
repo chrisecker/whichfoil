@@ -46,11 +46,8 @@ class Canvas(wx.ScrolledWindow, ViewBase):
     #
     # All points are stored as image coordinates.
     
-    zoom = overridable_property('zoom')
-    shift = overridable_property('shift')
-    transient = overridable_property('transient')
-    _zoom = 1.0
-    _shift = 0.0, 0.0
+    transient = overridable_property('transient', \
+        'position of transient item in image coordinates or None')
     _transient = None
     bmp = None
     _current = None
@@ -206,16 +203,11 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         alpha = self.model.alpha*pi/180.0
         # Alpha >0 bedeutet eine Drehung des Bildes im Uhrzeigersinn!
         zoom = self.model.zoom
-        #xshift = self.model.xshift
-        #yshift = self.model.yshift
-
-        #shift = self.get_shift()
 
         scrollx = self.GetScrollPos(wx.HORIZONTAL)
         scrolly = self.GetScrollPos(wx.VERTICAL)
         scroll = wx.Point2D(scrollx, scrolly)
 
-        # Translated(-scroll).Translated((0.5*w, 0.5*h)).
         m = create_matrix().Rotated(alpha) \
             .Translated((-0.5*w, -0.5*h)).Scaled(zoom, zoom)
 
@@ -223,15 +215,11 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         # links. Ein Punkt p wird als 1. Skaliert, 2. verscoben,
         # 3. Rotiert, ...
 
-        #focus = 0.5*wx.Point2D(w, h)
-        focus = self.model.focus
-        
-        focus_ = m(wx.Point2D(*focus))
+        focus_ = m(wx.Point2D(*self.model.focus))
 
         # jetzt so verschieben, dass focus_ im Mittelpunkt des Fensters (wc) liegt
         wc = 0.5*wx.Point2D(*self.Size)
         r = create_matrix().Translated(wc-focus_)(m)
-        # assert r(focus) == wc # works only when zoom ist not too small
         return r
 
     def get_image2virtual(self):
@@ -252,7 +240,6 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         # jetzt so verschieben, dass center_ im Mittelpunkt (vc_) der virtuellen Fläche liegt. 
         vc_ = 0.5*wx.Point2D(*self.VirtualSize)
         r = create_matrix().Translated(vc_-ic_)(m)
-        #assert r(ic) == vc_ # works only when zoom ist not too small
         return r
 
     def get_profile2image(self):
@@ -330,15 +317,6 @@ class Canvas(wx.ScrolledWindow, ViewBase):
         for p in p1, p2:
             self._draw_edge_handle(gc, t(p))
 
-        #p12 = p2-p1
-        #s = wx.Point2D(p12[1], -p12[0]) # senkrechte
-        #center = 0.5*(p1+p2) # Mitte zwischen p1 und p2
-        #p3 = center-model.lower*s
-        #p4 = center+model.upper*s
-        #
-        #for p in p3, p4:
-        #    self._draw_sub_handle(gc, t(p))
-        
         if self._transient:
             p_ = t(self._transient)
             pen = wx.Pen(colour="grey", width=linewidth)
@@ -375,7 +353,6 @@ class Canvas(wx.ScrolledWindow, ViewBase):
             p = wx.Point2D(x, y)
             self._draw_sub_handle(gc, profile2win(p))                
                 
-
     # x-part of position of sliders. Fixed.    
     xpositions = (0.25, 0.25, 0.5, 0.5, 0.75, 0.75)
     
@@ -426,16 +403,14 @@ class Canvas(wx.ScrolledWindow, ViewBase):
                 self._current = None
                 self.SetCursor(wx.StockCursor(wx.CURSOR_DEFAULT))
 
-
-        #if event.LeftDown():
+        if event.LeftDown() and self._current is not None:
+            self._dragstart = p
+            points = hvec+[p1, p2]
+            self.transient = points[self._current]
             
-        if event.Dragging() and self._current is not None:
-            if self._dragstart is None:
-                # Note that dragstart is in image coordinates!
-                self._dragstart = p 
+        elif event.Dragging() and self._current is not None:
             points = hvec+[p1, p2]
             delta = p-self._dragstart
-            # Note that transient is also in image coordinates
             t = points[self._current]+delta
             if self._current<6:
                 m = profile2image.Inverted()
