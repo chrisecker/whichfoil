@@ -34,7 +34,7 @@ class AngleBinder(TextBinder):
             raise InvalidValue(s)
 
     def tostr(self, value):
-        return u"%.1f °" % value
+        return u"%.1f °" % (value % 360)
 
 
 class FloatBinder(TextBinder):
@@ -231,8 +231,8 @@ class MainWindow(wx.Frame):
     file_entries = ['new', 'open', 'save', 'save_as', 'close']
     image_entries = ['load_image', 'flip_image']
     view_entries = ['zoomin', 'zoomout', 'moveleft', 'moveright', 'moveup', 'movedown',
-                    'rotateleft', 'rotateright']
-    airfoil_entries = ['open_browser', 'open_matcher']
+                    'rotateleft', 'rotateright', None, 'reset_view']
+    airfoil_entries = ['reset_airfoil', 'open_browser', 'open_matcher']
     debug_entries = ['open_notebook', 'open_shell']
 
     _filename = None
@@ -278,7 +278,7 @@ class MainWindow(wx.Frame):
 
         sizer2 = wx.BoxSizer(wx.VERTICAL)
 
-        l = wx.StaticText(panel, label=_("air foil:"))
+        l = wx.StaticText(panel, label=_("airfoil:"))
         sizer2.Add(l)
         t = wx.TextCtrl(panel, style=wx.TE_READONLY)
         sizer2.Add(t)
@@ -430,17 +430,31 @@ class MainWindow(wx.Frame):
         s = open(path, "rb").read()
         model = self.document
         model.bmp = s
-        # reset canvas
+        model.mirror = False
+        model.alpha = 0.0
+        self.reset_airfoil()
+        self.reset_view()
+
+    def reset_airfoil(self):
+        "Reset airfoil"
         w, h = self.canvas.bmp.Size
+        model = self.document
         model.p1 = 0.1*w, 0.5*h
         model.p2 = 0.9*w, 0.5*h
         model.sliders = (0.2, -0.2)*3
-        model.mirror = False
+        model.airfoil = None
+        model.yfactor = 1.0
+        
+    def reset_view(self):
+        "Reset view"
+        w, h = self.canvas.bmp.Size
+        model = self.document
+        model.sliders = (0.2, -0.2)*3
         model.scale = 1.0
         model.xshift = 0
         model.yshift = 0
-        model.alpha = 0.0
         model.focus = 0.5*w, 0.5*h
+        model.zoom = 1.0
         
     def load_image(self):
         "Open image file"
