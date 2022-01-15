@@ -9,7 +9,6 @@ import wx
 
 from math import sqrt, sin, cos
 from copy import copy
-
 from wx import Point, Rect
 
 
@@ -344,15 +343,29 @@ def _MTransformed(self, m):
     return r
 wx.GraphicsMatrix.Transformed = _MTransformed
 
+def rotated1(self, angle, center=(0, 0)):
+    r = self.Copy()
+    r.Rotate(angle)
+    return r
+
 def _MRotated(self, angle, center=(0, 0)):
     c = cos(angle)
     s = sin(angle)
     x, y = center
-    t = create_matrix(c, +s, -s, c, s*y-c*x+x, -c*y-s*x+y)
-    r = self.Copy()
-    r.Concat(t)
+    x = y = 0.0 # XXX REMOVE
+    r = create_matrix(c, +s, -s, c, s*y-c*x+x, -c*y-s*x+y)    
+    r.Concat(self)
     return r
 wx.GraphicsMatrix.Rotated = _MRotated
+
+def similar(self, m):
+    m_ = m.Get()
+    s_ = self.Get()
+    for i in range(6):
+        if abs(m_[i]-s_[i])>1e-8: return False
+    return True
+wx.GraphicsMatrix.Similar = similar
+
     
 def _MTranslated(self, p):
     r = self.Copy()
