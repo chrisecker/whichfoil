@@ -449,7 +449,6 @@ class MainWindow(wx.Frame):
         "Reset view"
         w, h = self.canvas.bmp.Size
         model = self.document
-        model.sliders = (0.2, -0.2)*3
         model.scale = 1.0
         model.xshift = 0
         model.yshift = 0
